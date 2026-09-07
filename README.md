@@ -107,7 +107,17 @@ flowchart TD
 
 ## 🚀 วิธีติดตั้งและเปิดใช้งาน (Quickstart)
 
-### วิธีที่ 1: รันจากสคริปต์ (แนะนำสำหรับ Developer)
+### 📦 วิธีที่ง่ายที่สุดสำหรับทุกคน: ดาวน์โหลด .EXE สำเร็จรูป (ไม่ต้องลง Python)
+> **ทุกคนสามารถดาวน์โหลดไฟล์สำเร็จรูปไปเปิดใช้งานได้ทันที ไม่ต้องติดตั้งโปรแกรมอะไรเพิ่ม:**
+> 
+> 👉 **[ดาวน์โหลด DiscordRichPresence-windows-x64.zip (GitHub Releases v2.0.0)](https://github.com/Gubbitkeytoday/discord-rich-presence-pro/releases/latest)**
+> 
+> 1. ดาวน์โหลดไฟล์ `DiscordRichPresence-windows-x64.zip` แล้วแตกไฟล์
+> 2. ดับเบิลคลิกเปิด **`DiscordRichPresence.exe`** ใช้งานได้ทันที มีไอคอนขึ้นที่ System Tray ข้างนาฬิกา!
+
+---
+
+### วิธีที่ 2: รันจากโค้ด Python (สำหรับ Developer)
 
 1. ตรวจสอบว่ามี **Python 3.10 ขึ้นไป** ติดตั้งบนเครื่อง (และติ๊ก Add Python to PATH)
 2. โคลนโปรเจกต์นี้ลงในเครื่อง:
