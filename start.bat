@@ -1,11 +1,11 @@
 @echo off
 chcp 65001 >nul
 setlocal EnableDelayedExpansion
-title Discord Rich Presence - Antigravity Edition
+title Discord Rich Presence Pro
 cd /d "%~dp0"
 
 echo ==========================================================
-echo   Discord Rich Presence - Antigravity Edition v2
+echo   Discord Rich Presence Pro v2.1.0
 echo ==========================================================
 
 :: ---- 1) หา Python 3.10+ บนเครื่อง --------------------------------------

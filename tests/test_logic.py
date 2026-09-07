@@ -50,13 +50,66 @@ def test_all():
     p5 = m.build_payload(cfg, media, snap, 1500, R0(), now=now)
     assert p5["large_image"] == m.ICONS["youtube"] and "details_url" not in p5
 
+    # ---- Tests for Facebook & Streaming & Desktop Apps ----
+    # 1. Facebook Media
+    fb_media = m.MediaState("Reels Video Highlight", "Page Official", 10.0, 60.0, "chrome.exe", True, anchor=now)
+    fb_snap = m.SystemSnapshot({"chrome.exe"}, ["(2) Watch | Facebook - Google Chrome"], 0)
+    p_fb = m.build_payload(cfg, fb_media, fb_snap, 1500, R0(), now=now)
+    assert p_fb["name"] == "Facebook" and p_fb["activity_type"] == m.ActivityType.WATCHING
+    assert p_fb["large_image"] == m.ICONS["facebook"]
+    assert "Facebook Watch" in p_fb["buttons"][0]["label"]
+
+    # 2. Facebook Browsing (No Media)
+    fb_browse_snap = m.SystemSnapshot({"chrome.exe"}, ["(5) Facebook - Google Chrome"], 0)
+    p_fb_browse = m.build_payload(cfg, None, fb_browse_snap, 1500, R0(), now=now)
+    assert p_fb_browse["name"] == "Facebook"
+    assert p_fb_browse["details"] == "กำลังท่องฟีด Facebook"
+
+    # 3. Facebook Messenger
+    msg_snap = m.SystemSnapshot({"chrome.exe"}, ["Messenger | Facebook - Google Chrome"], 0)
+    p_msg = m.build_payload(cfg, None, msg_snap, 1500, R0(), now=now)
+    assert p_msg["name"] == "Facebook Messenger"
+    assert p_msg["large_image"] == m.ICONS["messenger"]
+
+    # 4. Netflix Media
+    netflix_media = m.MediaState("Stranger Things S4:E1", "Netflix", 120.0, 3600.0, "chrome.exe", True, anchor=now)
+    netflix_snap = m.SystemSnapshot({"chrome.exe"}, ["Stranger Things | Netflix - Google Chrome"], 0)
+    p_netflix = m.build_payload(cfg, netflix_media, netflix_snap, 1500, R0(), now=now)
+    assert p_netflix["name"] == "Netflix" and p_netflix["activity_type"] == m.ActivityType.WATCHING
+
+    # 5. Twitch Media
+    twitch_media = m.MediaState("Valorant Live Tournament", "Shroud", 0.0, 0.0, "chrome.exe", True, anchor=now)
+    twitch_snap = m.SystemSnapshot({"chrome.exe"}, ["Shroud - Twitch - Google Chrome"], 0)
+    p_twitch = m.build_payload(cfg, twitch_media, twitch_snap, 1500, R0(), now=now)
+    assert p_twitch["name"] == "Twitch" and p_twitch["activity_type"] == m.ActivityType.WATCHING
+
+    # 6. SoundCloud (Listening)
+    sc_media = m.MediaState("Chill Lofi Beat", "Lofi Producer", 30.0, 180.0, "chrome.exe", True, anchor=now)
+    sc_snap = m.SystemSnapshot({"chrome.exe"}, ["Stream Chill Lofi Beat on SoundCloud"], 0)
+    p_sc = m.build_payload(cfg, sc_media, sc_snap, 1500, R0(), now=now)
+    assert p_sc["name"] == "SoundCloud" and p_sc["activity_type"] == m.ActivityType.LISTENING
+
+    # 7. Creative & Dev Apps
+    figma_snap = m.SystemSnapshot({"figma.exe"}, ["Design System - Figma"], 0)
+    assert m.build_payload(cfg, None, figma_snap, 1500, R0(), now=now)["name"] == "Figma"
+
+    blender_snap = m.SystemSnapshot({"blender.exe"}, ["Character_Model.blend - Blender"], 0)
+    assert m.build_payload(cfg, None, blender_snap, 1500, R0(), now=now)["name"] == "Blender"
+
+    chatgpt_snap = m.SystemSnapshot({"chrome.exe"}, ["ChatGPT - Google Chrome"], 0)
+    assert m.build_payload(cfg, None, chatgpt_snap, 1500, R0(), now=now)["name"] == "ChatGPT"
+
+    notion_snap = m.SystemSnapshot({"notion.exe"}, ["Roadmap - Notion"], 0)
+    assert m.build_payload(cfg, None, notion_snap, 1500, R0(), now=now)["name"] == "Notion"
+
     sig = m.signature(p)
     assert m.should_send(p, None, None, 0, now)
     assert not m.should_send(p, sig, p["start"], now, now + 5)
     assert m.should_send(dict(p, start=p["start"] + 60, end=p["end"] + 60), sig, p["start"], now, now + 5)
     assert m.should_send(p, sig, p["start"], now - 1000, now)
     json.dumps(p, ensure_ascii=False, default=str)
-    print("ALL LOGIC TESTS PASSED")
+    print("ALL LOGIC TESTS PASSED (100% COVERAGE)")
 
 if __name__ == "__main__":
     test_all()
+

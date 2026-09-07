@@ -11,9 +11,10 @@
 
 <p align="center">
   <b>High-Performance, Zero-Latency Windows Native Discord Rich Presence Engine</b><br>
-  ระบบแสดงสถานะ Discord Rich Presence ระดับ Enterprise ซิงค์สื่อแบบเรียลไทม์ (YouTube, YouTube Music, Spotify)<br>
-  ดึงหน้าปกคลิปจริง + หลอดเวลา Sub-second Precision + ตรวจจับ VS Code + หลบเกมให้อัตโนมัติ โดยไม่ต้องลง Browser Extension
+  ระบบแสดงสถานะ Discord Rich Presence ระดับ Enterprise ซิงค์สื่อแบบเรียลไทม์ (YouTube, Facebook, Netflix, Twitch, TikTok, Spotify, SoundCloud)<br>
+  ดึงหน้าปกคลิปจริง + หลอดเวลา Sub-second Precision + ตรวจจับแอปทำงาน (VS Code, Figma, Blender, GitHub, Notion, ChatGPT) + หลบเกมให้อัตโนมัติ โดยไม่ต้องลง Browser Extension
 </p>
+
 
 </div>
 
@@ -105,12 +106,45 @@ flowchart TD
 
 ---
 
+## 🌐 แพลตฟอร์มและแอปพลิเคชันที่รองรับ (Supported Platforms & Apps)
+
+ระบบจะตรวจจับและสลับสถานะบน Discord ให้อัตโนมัติ โดยอิงจากสื่อที่กำลังเล่นหรือแอปพลิเคชันที่คุณกำลังเปิดใช้งาน:
+
+### 🎬 โซเชียลมีเดีย & บริการสตรีมมิ่ง (Social Media & Streaming)
+| แพลตฟอร์ม | โหมดการแสดงผล | รายละเอียดที่แสดงบน Discord | ปุ่ม Interactive บนการ์ด |
+| :--- | :--- | :--- | :--- |
+| **YouTube** | 📺 Watching | รูปปกคลิปจริง (MaxRes/HQ), ชื่อคลิป, ชื่อช่อง, หลอดเวลาสด | `▶ ดูคลิปนี้บน YouTube` |
+| **YouTube Music** | 🎵 Listening | รูปปกอัลบั้ม/เพลงจริง, ชื่อเพลง, ศิลปิน, หลอดเวลาสด | `▶ ฟังเพลงนี้` |
+| **Facebook** | 📺 Watching / Feed | วิดีโอ/Reels (Facebook Watch), ท่องฟีด (News Feed) | `▶ Facebook Watch` / `🌐 Facebook` |
+| **Facebook Messenger** | 💬 Messaging | แสดงสถานะกำลังสนทนาข้อความ พร้อมไอคอน Messenger | `💬 Messenger` |
+| **Netflix** | 🍿 Watching | ชื่อภาพยนตร์/ซีรีส์ที่กำลังรับชม พร้อมโลโก้ Netflix คมชัด | `▶ Netflix` |
+| **Twitch** | 🟣 Watching | สตรีมสด, ชื่อสตรีมเมอร์ และแชนเนล | `▶ Twitch` |
+| **TikTok** | 📱 Watching | วิดีโอสั้น, ครีเอเตอร์, เทรนด์ FYP | `▶ TikTok` |
+| **Spotify** | 🎵 Listening | ชื่อเพลง, ศิลปิน, หลอดเวลาการเล่นเพลง | `▶ Spotify` |
+| **SoundCloud** | 🎵 Listening | แทร็กเพลงอินดี้, รีมิกซ์, ศิลปิน | `▶ SoundCloud` |
+| **X (Twitter)** | 𝕏 Browsing | อัปเดตข่าวสารและเทรนด์บน X | `𝕏 Open X` |
+| **Instagram** | 📸 Browsing | ท่อง Instagram Feed, Stories และ Reels | `📸 Instagram` |
+
+### 🛠️ เครื่องมือสายครีเอเตอร์และนักพัฒนา (Creator & Developer Tools)
+| แอปพลิเคชัน | โหมดการทำงาน | รายละเอียดที่แสดงบน Discord | ไอคอนสถานะ |
+| :--- | :--- | :--- | :--- |
+| **VS Code** | 💻 Coding | กำลังแก้ไฟล์ (เช่น `main.py`), ชื่อโฟลเดอร์ Workspace | โลโก้ VS Code + AI Pair |
+| **Figma** | 🎨 Designing | ออกแบบ UI/UX, Design System และ Prototyping | โลโก้ Figma High-Res |
+| **Blender** | 🧊 3D Creation | สร้างโมเดล 3 มิติ, จัดแสง, เรนเดอร์อนิเมชัน | โลโก้ Blender High-Res |
+| **GitHub** | 🐙 Version Control | ตรวจสอบ Code Review, จัดการ Pull Request & Repo | โลโก้ GitHub High-Res |
+| **ChatGPT** | 🤖 AI Pair | ระดมความคิด สนทนา และแก้โจทย์ร่วมกับ ChatGPT | โลโก้ ChatGPT High-Res |
+| **Claude AI** | ✨ AI Pair | วิเคราะห์โค้ดและทำงานร่วมกับ Claude AI | โลโก้ Claude AI High-Res |
+| **Notion** | 📝 Workspace | จัดการบันทึก, เอกสาร และวางแผนงานโปรเจกต์ | โลโก้ Notion High-Res |
+| **Postman** | 🚀 API Testing | พัฒนาและยิงทดสอบ REST/GraphQL APIs | โลโก้ Postman High-Res |
+
+---
+
 ## 🚀 วิธีติดตั้งและเปิดใช้งาน (Quickstart)
 
 ### 📦 วิธีที่ง่ายที่สุดสำหรับทุกคน: ดาวน์โหลด .EXE สำเร็จรูป (ไม่ต้องลง Python)
 > **ทุกคนสามารถดาวน์โหลดไฟล์สำเร็จรูปไปเปิดใช้งานได้ทันที ไม่ต้องติดตั้งโปรแกรมอะไรเพิ่ม:**
 > 
-> 👉 **[ดาวน์โหลด DiscordRichPresence-windows-x64.zip (GitHub Releases v2.0.0)](https://github.com/Gubbitkeytoday/discord-rich-presence-pro/releases/latest)**
+> 👉 **[ดาวน์โหลด DiscordRichPresence-windows-x64.zip (GitHub Releases v2.1.0)](https://github.com/Gubbitkeytoday/discord-rich-presence-pro/releases/latest)**
 > 
 > 1. ดาวน์โหลดไฟล์ `DiscordRichPresence-windows-x64.zip` แล้วแตกไฟล์
 > 2. ดับเบิลคลิกเปิด **`DiscordRichPresence.exe`** ใช้งานได้ทันที มีไอคอนขึ้นที่ System Tray ข้างนาฬิกา!
@@ -128,13 +162,14 @@ flowchart TD
 3. ดับเบิลคลิก **`start.bat`** (สคริปต์จะสร้าง Virtual Environment และติดตั้ง Dependency ให้โดยอัตโนมัติ)
 4. สำหรับการรันแบบซ่อนหน้าต่างคอนโซลในพื้นหลัง ให้ดับเบิลคลิก **`start_background.vbs`**
 
-### วิธีที่ 2: คอมไพล์เป็น .EXE Portable แบบพกพา
+### วิธีที่ 3: คอมไพล์เป็น .EXE Portable ด้วยตัวเอง
 
 คุณสามารถคอมไพล์โปรเจกต์เป็นไฟล์ `.exe` สำหรับใช้งานคนเดียวได้ง่ายๆ:
 ```bash
 build_exe.bat
 ```
 ไฟล์ `.exe` พร้อม System Tray Icon จะถูกสร้างไว้ในโฟลเดอร์ `dist/` โดยไม่ต้องติดตั้ง Python บนเครื่องปลายทาง
+
 
 ---
 

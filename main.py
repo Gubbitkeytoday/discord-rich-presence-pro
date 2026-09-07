@@ -1,17 +1,17 @@
 """
-Discord Rich Presence - Antigravity Edition v2
-==============================================
-โชว์เพลง/คลิปที่กำลังเล่น (YouTube, YouTube Music, Spotify, ฯลฯ) และงานที่ทำอยู่ (VS Code)
-บนโปรไฟล์ Discord แบบสวย ครบ และกินเครื่องน้อยที่สุด
+Discord Rich Presence Pro
+==========================
+โชว์เพลง/คลิปที่กำลังเล่น (YouTube, Facebook, Netflix, Twitch, TikTok, Spotify, SoundCloud ฯลฯ)
+และแอปพลิเคชันที่ใช้งาน (VS Code, Figma, Blender, GitHub, Notion, ChatGPT, Postman)
+บนโปรไฟล์ Discord แบบเรียลไทม์ ครบถ้วน สวยงาม และกินทรัพยากรน้อยที่สุด
 
-หลักการออกแบบ (ระดับ production):
-- ส่งข้อมูลให้ Discord เฉพาะตอน "เปลี่ยน" เท่านั้น (dedupe) -> ไม่ชน rate limit, ไม่ปลุก CPU ฟรี
-- งานเน็ตทั้งหมด (หา video id / ตรวจปก) อยู่บน background thread -> main loop ไม่มีทางค้าง
-- ใช้ event loop + Media Session Manager ตัวเดียวตลอดอายุโปรแกรม -> ไม่สร้าง/ทำลาย WinRT ทุก 5 วิ
-- สแกนโปรเซส/หน้าต่างแบบ cache (ทุก 10 วิ) แทนทุก tick
-- โปรเซสตั้งตัวเองเป็น Below-Normal priority + EcoQoS (Efficiency mode) -> เกมได้ CPU ก่อนเสมอ
-- ตรวจจับเกม fullscreen -> ซ่อน presence ให้ Discord โชว์เกมแทน และผ่อนความถี่ลง
-- ปกใช้ maxresdefault (ไม่มีแถบดำ) ตรวจจริงก่อนใช้ ถ้าไม่มีถอยไป mqdefault
+หลักการออกแบบ (Enterprise Quality):
+- ซิงค์สื่อผ่าน Windows GSMTC Kernel แบบเรียลไทม์ ไม่ต้องลง Browser Extension
+- คำนวณ Anchor Timestamp แบบ Sub-Second Precision หลอดเวลาตรง ไม่กระตุก ไม่รีเซ็ต
+- ส่งข้อมูลให้ Discord เฉพาะตอน "เปลี่ยน" เท่านั้น (Deduplication) ไม่ชน Rate Limit
+- ระบบ LRU In-Memory Cache ดึงภาพหน้าปกคมชัดระดับ MaxRes/HQ
+- สแกนหน้าต่างและสถานะระบบแบบประหยัดพลังงาน (Efficiency Mode / EcoQoS)
+- ตรวจจับเกม Fullscreen อัตโนมัติ เพื่อหลบทางให้สถานะเกม
 """
 
 from __future__ import annotations
@@ -80,7 +80,7 @@ else:  # pragma: no cover - test stubs
 # ถ้าถูก build เป็น .exe (PyInstaller) ให้ config/log อยู่ข้าง exe ไม่ใช่ใน temp
 BASE_DIR = (os.path.dirname(os.path.abspath(sys.executable)) if getattr(sys, "frozen", False)
             else os.path.dirname(os.path.abspath(__file__)))
-APP_VERSION = "2.0.0"
+APP_VERSION = "2.1.0"
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 LOG_PATH = os.path.join(BASE_DIR, "rpc.log")
 
@@ -91,18 +91,36 @@ ICONS = {
     "youtube": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/youtube.png",
     "youtube_music": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/youtube-music.png",
     "spotify": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/spotify.png",
+    "facebook": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/facebook.png",
+    "messenger": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/facebook-messenger.png",
+    "netflix": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/netflix.png",
+    "twitch": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/twitch.png",
+    "tiktok": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/tiktok.png",
+    "soundcloud": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/soundcloud.png",
+    "instagram": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/instagram.png",
+    "twitter": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/twitter.png",
+    "github": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/github.png",
+    "figma": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/figma.png",
+    "blender": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/blender.png",
+    "chatgpt": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/chatgpt.png",
     "vscode": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/visual-studio-code.png",
     "claude": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/claude-ai.png",
     "gemini": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/google-gemini.png",
+    "notion": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/notion.png",
+    "postman": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/postman.png",
     "python": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/python.png",
     "windows": "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/windows.png",
 }
 
 BROWSERS = {"chrome.exe", "msedge.exe", "brave.exe", "firefox.exe", "opera.exe", "opera_gx.exe", "vivaldi.exe", "arc.exe"}
 # โปรเซสที่ต่อให้ fullscreen ก็ "ไม่ใช่เกม"
-NOT_A_GAME = BROWSERS | {"explorer.exe", "discord.exe", "code.exe", "claude.exe", "vlc.exe", "mpc-hc64.exe",
-                         "wwahost.exe", "applicationframehost.exe", "searchhost.exe", "startmenuexperiencehost.exe",
-                         "shellexperiencehost.exe", "lockapp.exe", "textinputhost.exe", "antigravity.exe"}
+NOT_A_GAME = BROWSERS | {
+    "explorer.exe", "discord.exe", "code.exe", "claude.exe", "vlc.exe", "mpc-hc64.exe",
+    "wwahost.exe", "applicationframehost.exe", "searchhost.exe", "startmenuexperiencehost.exe",
+    "shellexperiencehost.exe", "lockapp.exe", "textinputhost.exe", "antigravity.exe",
+    "figma.exe", "blender.exe", "notion.exe", "postman.exe", "githubdesktop.exe", "spotify.exe",
+    "slack.exe", "telegram.exe", "messenger.exe"
+}
 
 # ข้อความ 2 ภาษา
 STRINGS = {
@@ -120,6 +138,13 @@ STRINGS = {
         "watch_btn": "▶ ดูคลิปนี้บน YouTube",
         "listen_btn": "▶ ฟังเพลงนี้",
         "channel": "ช่อง",
+        "fb_watch": "รับชมวิดีโอ / Reels บน Facebook",
+        "fb_state": "Facebook Watch • Reels",
+        "fb_btn": "▶ Facebook Watch",
+        "fb_feed": "กำลังท่องฟีด Facebook",
+        "fb_feed_state": "News Feed • สังคมออนไลน์",
+        "messenger": "Facebook Messenger",
+        "chatting": "กำลังแชท / สนทนาข้อความ",
     },
     "en": {
         "paused": "Paused",
@@ -135,6 +160,13 @@ STRINGS = {
         "watch_btn": "▶ Watch on YouTube",
         "listen_btn": "▶ Listen",
         "channel": "Channel",
+        "fb_watch": "Watching Video / Reels on Facebook",
+        "fb_state": "Facebook Watch • Reels",
+        "fb_btn": "▶ Facebook Watch",
+        "fb_feed": "Browsing Facebook Feed",
+        "fb_feed_state": "News Feed • Social Network",
+        "messenger": "Facebook Messenger",
+        "chatting": "Chatting & Messaging",
     },
 }
 
@@ -232,9 +264,14 @@ _NOISE = re.compile(
 
 
 def clean_title(title: str) -> str:
-    """ตัดคำรกที่ไม่ใช่ชื่อเพลง เช่น (Official MV) [4K] แต่ไม่ยุ่งกับวงเล็บที่เป็นส่วนของชื่อจริง"""
+    """ตัดคำรกที่ไม่ใช่ชื่อเพลง เช่น (Official MV) [4K] และชื่อเว็บเบราว์เซอร์"""
     t = (title or "").strip()
-    t = re.sub(r"\s+-\s+YouTube(\s+Music)?$", "", t)
+    t = re.sub(r"\s+-\s+YouTube(\s+Music)?$", "", t, flags=re.IGNORECASE)
+    t = re.sub(r"\s+[-|]\s+Facebook$", "", t, flags=re.IGNORECASE)
+    t = re.sub(r"^Watch\s+\|\s+Facebook$", "", t, flags=re.IGNORECASE)
+    t = re.sub(r"\s+[-|]\s+Netflix$", "", t, flags=re.IGNORECASE)
+    t = re.sub(r"\s+[-|]\s+Twitch$", "", t, flags=re.IGNORECASE)
+    t = re.sub(r"\s+[-|]\s+SoundCloud$", "", t, flags=re.IGNORECASE)
     t = re.sub(r"^\(\d+\)\s*", "", t)          # "(3) title" = แจ้งเตือนของแท็บ
     t = _NOISE.sub(" ", t)
     t = re.sub(r"\s{2,}", " ", t).strip(" -•|")
@@ -538,15 +575,43 @@ class WindowsProbe:
 #  Presence builder (pure function -> easy to test)                            #
 # --------------------------------------------------------------------------- #
 def classify_media(media: MediaState, titles: list[str]) -> str:
-    """'youtube_music' | 'spotify' | 'youtube' | 'other'"""
-    if "spotify" in media.app:
+    """'youtube_music' | 'spotify' | 'youtube' | 'facebook' | 'netflix' | 'twitch' | 'tiktok' | 'soundcloud' | 'other'"""
+    app = media.app.lower()
+    m_title = media.title.lower()
+    m_artist = media.artist.lower()
+
+    if "spotify" in app:
         return "spotify"
-    if any(" - YouTube Music" in t for t in titles):
+    if "netflix" in app or "netflix" in m_title:
+        return "netflix"
+    if "soundcloud" in m_title or "soundcloud" in m_artist:
+        return "soundcloud"
+    if "twitch" in m_title or "twitch" in m_artist:
+        return "twitch"
+    if "tiktok" in m_title or "tiktok" in m_artist:
+        return "tiktok"
+    if "facebook" in m_title or "facebook" in m_artist:
+        return "facebook"
+
+    lower_titles = [t.lower() for t in titles]
+
+    if any("youtube music" in t for t in lower_titles):
         return "youtube_music"
-    if any(" - YouTube" in t for t in titles) or "youtube" in media.title.lower():
+    if any(" - youtube" in t or "youtube.com" in t for t in lower_titles) or "youtube" in m_title:
         return "youtube"
-    if any(b.split(".")[0] in media.app for b in BROWSERS):
-        return "youtube"  # เบราว์เซอร์เล่นสื่อ - เดาว่า YouTube (กรณีที่พบบ่อยสุด)
+    if any("netflix" in t for t in lower_titles):
+        return "netflix"
+    if any("twitch.tv" in t or " - twitch" in t for t in lower_titles):
+        return "twitch"
+    if any("tiktok" in t for t in lower_titles):
+        return "tiktok"
+    if any("soundcloud" in t for t in lower_titles):
+        return "soundcloud"
+    if any("facebook" in t or "fb.watch" in t for t in lower_titles):
+        return "facebook"
+
+    if any(b.split(".")[0] in app for b in BROWSERS):
+        return "youtube"
     return "other"
 
 
@@ -567,7 +632,6 @@ def build_payload(cfg: Config, media: Optional[MediaState], snap: SystemSnapshot
     procs, titles = snap.procs, snap.titles
     has_vscode = "code.exe" in procs
     has_browser = bool(procs & BROWSERS)
-    claude_on = "claude.exe" in procs or any("claude" in t.lower() for t in titles)
     custom_btn = cfg["custom_button"] or {}
     custom = {"label": fit_button(custom_btn.get("label", "⚡ Antigravity AI")),
               "url": custom_btn.get("url", "https://github.com")}
@@ -578,21 +642,66 @@ def build_payload(cfg: Config, media: Optional[MediaState], snap: SystemSnapshot
         kind = classify_media(media, titles)
         title = clean_title(media.title)
         artist = media.artist or ""
-        listening = kind in ("youtube_music", "spotify")
+        listening = kind in ("youtube_music", "spotify", "soundcloud")
 
         info = VideoInfo()
         if kind in ("youtube", "youtube_music"):
             info = resolver.get(title, artist)
 
         cover = info.thumbnail_url if (cfg["show_cover_art"] and info.thumbnail_url) else None
-        icon = {"youtube": ICONS["youtube"], "youtube_music": ICONS["youtube_music"],
-                "spotify": ICONS["spotify"]}.get(kind, ICONS["windows"])
-        app_name = {"youtube": "YouTube", "youtube_music": "YouTube Music", "spotify": "Spotify"}.get(kind, "Media")
+
+        icon_map = {
+            "youtube": ICONS["youtube"],
+            "youtube_music": ICONS["youtube_music"],
+            "spotify": ICONS["spotify"],
+            "facebook": ICONS["facebook"],
+            "netflix": ICONS["netflix"],
+            "twitch": ICONS["twitch"],
+            "tiktok": ICONS["tiktok"],
+            "soundcloud": ICONS["soundcloud"],
+        }
+        name_map = {
+            "youtube": "YouTube",
+            "youtube_music": "YouTube Music",
+            "spotify": "Spotify",
+            "facebook": "Facebook",
+            "netflix": "Netflix",
+            "twitch": "Twitch",
+            "tiktok": "TikTok",
+            "soundcloud": "SoundCloud",
+        }
+        icon = icon_map.get(kind, ICONS["windows"])
+        app_name = name_map.get(kind, "Media")
+
+        if kind == "facebook":
+            if not title or title.lower() in ("facebook", "watch", "reels", "video"):
+                title = S.get("fb_watch", "รับชมวิดีโอ / Reels บน Facebook")
+            display_state = f"{artist} • Facebook Watch" if artist else S.get("fb_state", "Facebook Watch • Reels")
+            btn_primary = {"label": fit_button(S.get("fb_btn", "▶ Facebook Watch")), "url": "https://www.facebook.com/watch"}
+        elif kind == "netflix":
+            display_state = artist if artist else "Netflix Original / Series"
+            btn_primary = {"label": "▶ Netflix", "url": "https://www.netflix.com"}
+        elif kind == "twitch":
+            display_state = f"Streamer: {artist}" if artist else "Twitch Live Stream"
+            btn_primary = {"label": "▶ Twitch", "url": "https://www.twitch.tv"}
+        elif kind == "tiktok":
+            display_state = artist if artist else "TikTok Trends • FYP"
+            btn_primary = {"label": "▶ TikTok", "url": "https://www.tiktok.com"}
+        elif kind == "soundcloud":
+            display_state = artist if artist else "SoundCloud Audio"
+            btn_primary = {"label": "▶ SoundCloud", "url": "https://soundcloud.com"}
+        elif kind == "spotify":
+            display_state = artist if artist else "Spotify Music"
+            btn_primary = {"label": "▶ Spotify", "url": "https://open.spotify.com"}
+        else:  # youtube / youtube_music
+            display_state = artist if artist else app_name
+            btn_label = S["listen_btn"] if listening else S["watch_btn"]
+            btn_primary = {"label": fit_button(btn_label), "url": info.video_url}
 
         p = {
-            "name": app_name,  # หัวการ์ด: "กำลังดู YouTube" / "กำลังฟัง Spotify"
-            "activity_type": ActivityType.LISTENING,
-            "status_display_type": StatusDisplayType.DETAILS,  # ใน member list โชว์ชื่อเพลงเลย
+            "name": app_name,
+            "activity_type": ActivityType.LISTENING if listening else ActivityType.WATCHING,
+            "status_display_type": StatusDisplayType.DETAILS,
             "details": fit(title),
             "large_image": cover or icon,
             "large_text": fit(title),
@@ -607,11 +716,11 @@ def build_payload(cfg: Config, media: Optional[MediaState], snap: SystemSnapshot
 
         if has_vscode:
             ws = f"{S['coding_in']} {vs_ws}" if vs_ws else f"{S['coding_in']} VS Code"
-            p["state"] = fit(f"{ws} • {artist}" if artist else ws)
+            p["state"] = fit(f"{ws} • {display_state}" if display_state else ws)
             p["small_image"] = ICONS["vscode"]
             p["small_text"] = "Visual Studio Code"
         else:
-            p["state"] = fit(artist if artist else app_name)
+            p["state"] = fit(display_state)
 
         pos = media.position_at(now)
         if media.playing:
@@ -621,18 +730,15 @@ def build_payload(cfg: Config, media: Optional[MediaState], snap: SystemSnapshot
             else:
                 p["start"] = int(round(now - pos)) if pos > 0 else session_start
         else:
-            # หยุดชั่วคราว: Discord ไม่มีหลอดหยุดนิ่ง จึงโชว์เวลาค้างเป็นข้อความแทน
             frozen = f" {_mmss(pos)} / {_mmss(media.duration)}" if media.duration > 0 else ""
             p["state"] = fit(f"⏸ {S['paused']}{frozen} • {p['state']}")
 
-        btn_label = S["listen_btn"] if listening else S["watch_btn"]
-        p["buttons"] = [{"label": fit_button(btn_label), "url": info.video_url}, custom]
-        if kind == "spotify":
-            p["buttons"] = [{"label": "▶ Spotify", "url": "https://open.spotify.com"}, custom]
+        p["buttons"] = [btn_primary, custom]
         return p
 
     # ======================= B) VS CODE ===================== #
     if has_vscode:
+        claude_on = "claude.exe" in procs or any("claude" in t.lower() for t in titles)
         editing = f"{S['editing']} {vs_file}" if vs_file else S["writing_code"]
         ws = f"{S['workspace']}: {vs_ws}" if vs_ws else "Visual Studio Code"
         return {
@@ -649,7 +755,184 @@ def build_payload(cfg: Config, media: Optional[MediaState], snap: SystemSnapshot
             "buttons": [{"label": "💻 My Workspace", "url": custom["url"]}, custom],
         }
 
-    # ======================= C) BROWSING ==================== #
+    # ======================= C) APPS & SOCIAL / CREATIVE ===================== #
+    lower_titles = [t.lower() for t in titles]
+
+    # 1. Messenger
+    if "messenger.exe" in procs or any("messenger" in t for t in lower_titles):
+        return {
+            "name": "Facebook Messenger",
+            "activity_type": ActivityType.PLAYING,
+            "status_display_type": StatusDisplayType.NAME,
+            "details": fit(S.get("chatting", "กำลังแชท / สนทนาข้อความ")),
+            "state": fit(S.get("messenger", "Facebook Messenger")),
+            "large_image": ICONS["messenger"],
+            "large_text": "Facebook Messenger",
+            "small_image": ICONS["facebook"],
+            "small_text": "Facebook",
+            "start": session_start,
+            "buttons": [{"label": "💬 Messenger", "url": "https://www.messenger.com"}, custom],
+        }
+
+    # 2. Facebook
+    if any("facebook" in t and "messenger" not in t for t in lower_titles):
+        return {
+            "name": "Facebook",
+            "activity_type": ActivityType.PLAYING,
+            "status_display_type": StatusDisplayType.NAME,
+            "details": fit(S.get("fb_feed", "กำลังท่องฟีด Facebook")),
+            "state": fit(S.get("fb_feed_state", "News Feed • สังคมออนไลน์")),
+            "large_image": ICONS["facebook"],
+            "large_text": "Facebook",
+            "small_image": ICONS["windows"],
+            "small_text": "Online",
+            "start": session_start,
+            "buttons": [{"label": "🌐 Facebook", "url": "https://www.facebook.com"}, custom],
+        }
+
+    # 3. Figma
+    if "figma.exe" in procs or any("figma" in t for t in lower_titles):
+        return {
+            "name": "Figma",
+            "activity_type": ActivityType.PLAYING,
+            "status_display_type": StatusDisplayType.NAME,
+            "details": fit("กำลังออกแบบ UI/UX บน Figma"),
+            "state": fit("Product Design & Prototyping"),
+            "large_image": ICONS["figma"],
+            "large_text": "Figma Design",
+            "small_image": ICONS["windows"],
+            "small_text": "Designing",
+            "start": session_start,
+            "buttons": [{"label": "🎨 Open Figma", "url": "https://www.figma.com"}, custom],
+        }
+
+    # 4. Blender
+    if "blender.exe" in procs or any("blender" in t for t in lower_titles):
+        return {
+            "name": "Blender",
+            "activity_type": ActivityType.PLAYING,
+            "status_display_type": StatusDisplayType.NAME,
+            "details": fit("กำลังสร้าง 3D Model / เรนเดอร์งาน"),
+            "state": fit("3D Creation Suite"),
+            "large_image": ICONS["blender"],
+            "large_text": "Blender 3D",
+            "small_image": ICONS["windows"],
+            "small_text": "Rendering",
+            "start": session_start,
+            "buttons": [{"label": "🧊 Blender", "url": "https://www.blender.org"}, custom],
+        }
+
+    # 5. GitHub Desktop / GitHub
+    if "githubdesktop.exe" in procs or any("github" in t and ("repository" in t or "commit" in t or "pull request" in t) for t in lower_titles):
+        return {
+            "name": "GitHub",
+            "activity_type": ActivityType.PLAYING,
+            "status_display_type": StatusDisplayType.NAME,
+            "details": fit("กำลังจัดการ Repository & Review Code"),
+            "state": fit("GitHub Developer Platform"),
+            "large_image": ICONS["github"],
+            "large_text": "GitHub",
+            "small_image": ICONS["windows"],
+            "small_text": "Coding",
+            "start": session_start,
+            "buttons": [{"label": "🐙 GitHub", "url": "https://github.com"}, custom],
+        }
+
+    # 6. ChatGPT / Claude AI
+    if any("chatgpt" in t or "openai" in t for t in lower_titles):
+        return {
+            "name": "ChatGPT",
+            "activity_type": ActivityType.PLAYING,
+            "status_display_type": StatusDisplayType.NAME,
+            "details": fit("กำลังสนทนาและระดมความคิดกับ AI"),
+            "state": fit("OpenAI ChatGPT"),
+            "large_image": ICONS["chatgpt"],
+            "large_text": "ChatGPT",
+            "small_image": ICONS["windows"],
+            "small_text": "AI Assistant",
+            "start": session_start,
+            "buttons": [{"label": "🤖 ChatGPT", "url": "https://chatgpt.com"}, custom],
+        }
+    if "claude.exe" in procs or any("claude" in t for t in lower_titles):
+        return {
+            "name": "Claude AI",
+            "activity_type": ActivityType.PLAYING,
+            "status_display_type": StatusDisplayType.NAME,
+            "details": fit("กำลังทำงานร่วมกับ Claude AI"),
+            "state": fit("Anthropic Claude Assistant"),
+            "large_image": ICONS["claude"],
+            "large_text": "Claude AI",
+            "small_image": ICONS["windows"],
+            "small_text": "AI Assistant",
+            "start": session_start,
+            "buttons": [{"label": "✨ Claude AI", "url": "https://claude.ai"}, custom],
+        }
+
+    # 7. Notion
+    if "notion.exe" in procs or any("notion" in t for t in lower_titles):
+        return {
+            "name": "Notion",
+            "activity_type": ActivityType.PLAYING,
+            "status_display_type": StatusDisplayType.NAME,
+            "details": fit("กำลังบันทึกและจัดระเบียบงานบน Notion"),
+            "state": fit("Notion Connected Workspace"),
+            "large_image": ICONS["notion"],
+            "large_text": "Notion",
+            "small_image": ICONS["windows"],
+            "small_text": "Workspace",
+            "start": session_start,
+            "buttons": [{"label": "📝 Notion", "url": "https://www.notion.so"}, custom],
+        }
+
+    # 8. Postman
+    if "postman.exe" in procs or any("postman" in t for t in lower_titles):
+        return {
+            "name": "Postman",
+            "activity_type": ActivityType.PLAYING,
+            "status_display_type": StatusDisplayType.NAME,
+            "details": fit("กำลังทดสอบและพัฒนา API บน Postman"),
+            "state": fit("API Development Platform"),
+            "large_image": ICONS["postman"],
+            "large_text": "Postman",
+            "small_image": ICONS["windows"],
+            "small_text": "Testing APIs",
+            "start": session_start,
+            "buttons": [{"label": "🚀 Postman", "url": "https://www.postman.com"}, custom],
+        }
+
+    # 9. Twitter / X
+    if any("twitter" in t or " / x" in t for t in lower_titles):
+        return {
+            "name": "X (Twitter)",
+            "activity_type": ActivityType.PLAYING,
+            "status_display_type": StatusDisplayType.NAME,
+            "details": fit("กำลังอัปเดตข่าวสารบน X (Twitter)"),
+            "state": fit("Trending News & Feed"),
+            "large_image": ICONS["twitter"],
+            "large_text": "X (Twitter)",
+            "small_image": ICONS["windows"],
+            "small_text": "Social",
+            "start": session_start,
+            "buttons": [{"label": "𝕏 Open X", "url": "https://x.com"}, custom],
+        }
+
+    # 10. Instagram
+    if any("instagram" in t for t in lower_titles):
+        return {
+            "name": "Instagram",
+            "activity_type": ActivityType.PLAYING,
+            "status_display_type": StatusDisplayType.NAME,
+            "details": fit("กำลังท่อง Instagram Feed & Stories"),
+            "state": fit("Photos & Reels"),
+            "large_image": ICONS["instagram"],
+            "large_text": "Instagram",
+            "small_image": ICONS["windows"],
+            "small_text": "Social",
+            "start": session_start,
+            "buttons": [{"label": "📸 Instagram", "url": "https://www.instagram.com"}, custom],
+        }
+
+    # ======================= D) BROWSING ==================== #
     buttons = [{"label": fit_button(b.get("label", "Open")), "url": b.get("url", "https://www.youtube.com")}
                for b in (cfg["buttons"] or [])][:2] or [custom]
     if has_browser:
@@ -667,7 +950,7 @@ def build_payload(cfg: Config, media: Optional[MediaState], snap: SystemSnapshot
             "buttons": buttons,
         }
 
-    # ======================= D) STANDBY ===================== #
+    # ======================= E) STANDBY ===================== #
     return {
         "name": "Antigravity",
         "activity_type": ActivityType.PLAYING,
@@ -681,6 +964,7 @@ def build_payload(cfg: Config, media: Optional[MediaState], snap: SystemSnapshot
         "start": session_start,
         "buttons": buttons,
     }
+
 
 
 def signature(payload: dict) -> str:
@@ -719,7 +1003,7 @@ class Controller:
 
 def banner(client_id: str) -> None:
     log.info("=" * 60)
-    log.info("  DISCORD RICH PRESENCE - ANTIGRAVITY EDITION v%s", APP_VERSION)
+    log.info("  DISCORD RICH PRESENCE PRO v%s", APP_VERSION)
     log.info("  client id : %s", client_id)
     log.info("  media     : %s", f"Windows GSMTC via {MEDIA_BACKEND}" if HAS_WINSDK
              else "DISABLED - pip install winrt-Windows.Media.Control (or winsdk)")
