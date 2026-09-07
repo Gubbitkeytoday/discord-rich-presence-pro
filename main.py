@@ -44,16 +44,31 @@ if IS_WINDOWS:
     from pypresence import (ActivityType, DiscordNotFound, PipeClosed, Presence,
                             StatusDisplayType)
 
-    try:
-        from winsdk.windows.media.control import \
-            GlobalSystemMediaTransportControlsSessionManager as SessionManager
-        from winsdk.windows.media.control import \
-            GlobalSystemMediaTransportControlsSessionPlaybackStatus as PlaybackStatus
-        HAS_WINSDK = True
+    # Windows Media API: รองรับทั้ง winrt (ตัวใหม่ ใช้ได้ถึง Python 3.13+) และ winsdk (ตัวเก่า ≤3.12)
+    HAS_WINSDK = False
+    MEDIA_BACKEND = "none"
+    for _mod in ("winrt.windows.media.control", "winsdk.windows.media.control"):
+        try:
+            import importlib
+            _mc = importlib.import_module(_mod)
+            SessionManager = _mc.GlobalSystemMediaTransportControlsSessionManager
+            PlaybackStatus = _mc.GlobalSystemMediaTransportControlsSessionPlaybackStatus
+            HAS_WINSDK = True
+            MEDIA_BACKEND = _mod.split(".")[0]
+            break
+        except Exception:  # pragma: no cover
+            continue
+
+    try:  # tray icon (ไม่บังคับ — ถ้าไม่มีก็รันแบบเงียบ)
+        import pystray
+        from PIL import Image, ImageDraw
+        HAS_TRAY = True
     except Exception:  # pragma: no cover
-        HAS_WINSDK = False
+        HAS_TRAY = False
 else:  # pragma: no cover - test stubs
     HAS_WINSDK = False
+    HAS_TRAY = False
+    MEDIA_BACKEND = "none"
 
     class ActivityType:  # type: ignore
         PLAYING, LISTENING, WATCHING = 0, 2, 3
@@ -62,7 +77,10 @@ else:  # pragma: no cover - test stubs
         NAME, STATE, DETAILS = 0, 1, 2
 
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# ถ้าถูก build เป็น .exe (PyInstaller) ให้ config/log อยู่ข้าง exe ไม่ใช่ใน temp
+BASE_DIR = (os.path.dirname(os.path.abspath(sys.executable)) if getattr(sys, "frozen", False)
+            else os.path.dirname(os.path.abspath(__file__)))
+APP_VERSION = "2.0.0"
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 LOG_PATH = os.path.join(BASE_DIR, "rpc.log")
 
@@ -169,6 +187,13 @@ class Config:
         self.reload()
 
     def reload(self) -> bool:
+        if not os.path.exists(self.path):  # เครื่องใหม่ / คนอื่นเอาไปใช้ -> สร้างค่าเริ่มต้นให้
+            try:
+                with open(self.path, "w", encoding="utf-8") as f:
+                    json.dump(DEFAULT_CONFIG, f, ensure_ascii=False, indent=2)
+                log.info("created default config.json")
+            except OSError as e:
+                log.warning("cannot create config.json: %s", e)
         try:
             mtime = os.path.getmtime(self.path)
         except OSError:
@@ -676,18 +701,34 @@ def should_send(payload: dict, last_sig: Optional[str], last_start: Optional[int
 
 
 # --------------------------------------------------------------------------- #
-#  Main loop                                                                  #
+#  Main loop (ควบคุมได้จาก tray: pause / quit)                                 #
 # --------------------------------------------------------------------------- #
+class Controller:
+    """สถานะร่วมระหว่าง main loop กับ tray icon"""
+
+    def __init__(self):
+        self.stop = threading.Event()
+        self.paused = threading.Event()   # set = ผู้ใช้กด "หยุดชั่วคราว" จาก tray
+        self.status = "starting"          # ข้อความสั้น ๆ โชว์ใน tray
+        self.wake = threading.Event()     # ปลุก loop ทันทีเมื่อกดปุ่มใน tray
+
+    def sleep(self, seconds: float) -> None:
+        self.wake.wait(timeout=seconds)
+        self.wake.clear()
+
+
 def banner(client_id: str) -> None:
     log.info("=" * 60)
-    log.info("  DISCORD RICH PRESENCE - ANTIGRAVITY EDITION v2")
+    log.info("  DISCORD RICH PRESENCE - ANTIGRAVITY EDITION v%s", APP_VERSION)
     log.info("  client id : %s", client_id)
-    log.info("  media     : %s", "Windows GSMTC (winsdk)" if HAS_WINSDK else "DISABLED (pip install winsdk)")
-    log.info("  log file  : %s", LOG_PATH)
+    log.info("  media     : %s", f"Windows GSMTC via {MEDIA_BACKEND}" if HAS_WINSDK
+             else "DISABLED - pip install winrt-Windows.Media.Control (or winsdk)")
+    log.info("  tray icon : %s", "yes" if HAS_TRAY else "no (pip install pystray pillow)")
+    log.info("  folder    : %s", BASE_DIR)
     log.info("=" * 60)
 
 
-def run() -> None:
+def run(ctl: Controller) -> None:
     cfg = Config(CONFIG_PATH)
     client_id = str(cfg["client_id"] or DEFAULT_CLIENT_ID)
     banner(client_id)
@@ -701,54 +742,72 @@ def run() -> None:
     last_sig: Optional[str] = None
     last_start: Optional[int] = None
     last_sent_at = 0.0
-    hidden_for_game = False
+    hidden = False  # presence ถูก clear อยู่ (เพราะเกม หรือผู้ใช้กดหยุด)
 
-    while True:
+    def clear_presence(reason: str) -> bool:
+        nonlocal rpc, last_sig, hidden
+        if rpc is None or hidden:
+            return True
+        try:
+            rpc.clear()
+            hidden, last_sig = True, None
+            log.info("presence hidden (%s)", reason)
+            return True
+        except Exception:
+            rpc = None
+            return False
+
+    while not ctl.stop.is_set():
         # 1) connect
         if rpc is None:
             try:
                 rpc = Presence(client_id)
                 rpc.connect()
-                last_sig, last_start = None, None
+                last_sig, last_start, hidden = None, None, False
+                ctl.status = "เชื่อมต่อ Discord แล้ว"
                 log.info("connected to Discord")
             except (DiscordNotFound, ConnectionRefusedError, FileNotFoundError):
+                ctl.status = "รอ Discord เปิด..."
                 log.info("Discord not running - retry in 10s")
                 rpc = None
-                time.sleep(10)
+                ctl.sleep(10)
                 continue
             except Exception as e:
+                ctl.status = "เชื่อมต่อไม่ได้ - กำลังลองใหม่"
                 log.warning("connect error: %s - retry in 10s", e)
                 rpc = None
-                time.sleep(10)
+                ctl.sleep(10)
                 continue
 
         cfg.reload()
         interval = float(cfg["update_interval_seconds"] or 5)
 
-        # 2) gaming? -> hide presence, back off
+        # 2) user paused from tray
+        if ctl.paused.is_set():
+            clear_presence("paused by user")
+            ctl.status = "หยุดชั่วคราว (กดเริ่มใน tray)"
+            ctl.sleep(interval)
+            continue
+
+        # 3) gaming? -> hide presence, back off
         game = probe.foreground_game({g.lower() for g in (cfg["game_processes"] or [])})
         if game and cfg["pause_when_gaming"]:
-            if not hidden_for_game:
-                try:
-                    rpc.clear()
-                except Exception:
-                    rpc = None
+            if not hidden:
+                if not clear_presence(f"game {game}"):
                     continue
-                hidden_for_game = True
-                last_sig = None
-                log.info("game detected (%s) - presence hidden, low-power mode", game)
-            time.sleep(float(cfg["gaming_interval_seconds"] or 15))
+            ctl.status = f"เล่นเกมอยู่ ({game}) - ซ่อนสถานะ"
+            ctl.sleep(float(cfg["gaming_interval_seconds"] or 15))
             continue
-        if hidden_for_game:
-            hidden_for_game = False
-            log.info("game closed - presence resumed")
+        if hidden:
+            hidden = False
+            log.info("presence resumed")
 
-        # 3) probe + build
+        # 4) probe + build
         snap = probe.snapshot()
         media = probe.media()
         payload = build_payload(cfg, media, snap, session_start, resolver)
 
-        # 4) send only on change
+        # 5) send only on change
         now = time.time()
         if should_send(payload, last_sig, last_start, last_sent_at, now):
             try:
@@ -761,18 +820,82 @@ def run() -> None:
                 log.info("update  %s | %s%s | cover=%s",
                          payload.get("details"), payload.get("state"), tl,
                          "thumb" if "ytimg" in str(payload.get("large_image")) else "icon")
+                ctl.status = f"{payload.get('details')}"[:60]
             except (PipeClosed, BrokenPipeError):
                 log.info("Discord pipe closed - reconnecting")
                 rpc = None
-                time.sleep(3)
+                ctl.sleep(3)
                 continue
             except Exception as e:
                 log.warning("update error: %s", e)
                 rpc = None
-                time.sleep(3)
+                ctl.sleep(3)
                 continue
 
-        time.sleep(interval)
+        ctl.sleep(interval)
+
+    # graceful exit: ลบสถานะออกจากโปรไฟล์ก่อนปิด
+    if rpc is not None:
+        try:
+            rpc.clear()
+            rpc.close()
+        except Exception:
+            pass
+    log.info("stopped")
+
+
+# --------------------------------------------------------------------------- #
+#  Tray icon (ให้คนทั่วไปรู้ว่ามันรันอยู่ และปิดได้โดยไม่ต้องใช้ Task Manager)   #
+# --------------------------------------------------------------------------- #
+def _tray_image(active: bool):
+    size = 64
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    color = (88, 101, 242, 255) if active else (128, 132, 142, 255)  # Discord blurple / เทาเมื่อหยุด
+    d.rounded_rectangle((4, 4, size - 4, size - 4), radius=16, fill=color)
+    # สัญลักษณ์ "เล่น" สีขาว
+    d.polygon([(24, 18), (24, 46), (46, 32)], fill=(255, 255, 255, 255))
+    return img
+
+
+def _open(path: str) -> None:
+    try:
+        os.startfile(path)  # type: ignore[attr-defined]
+    except Exception as e:
+        log.warning("cannot open %s: %s", path, e)
+
+
+def run_with_tray(ctl: Controller) -> None:
+    worker = threading.Thread(target=run, args=(ctl,), daemon=True, name="rpc-loop")
+    worker.start()
+
+    def toggle(icon, _item):
+        if ctl.paused.is_set():
+            ctl.paused.clear()
+        else:
+            ctl.paused.set()
+        ctl.wake.set()
+        icon.icon = _tray_image(not ctl.paused.is_set())
+
+    def quit_app(icon, _item):
+        ctl.stop.set()
+        ctl.wake.set()
+        worker.join(timeout=5)
+        icon.stop()
+
+    menu = pystray.Menu(
+        pystray.MenuItem(lambda _: f"สถานะ: {ctl.status}", None, enabled=False),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem(lambda _: "▶ เริ่มแสดงสถานะ" if ctl.paused.is_set() else "⏸ หยุดแสดงสถานะ", toggle),
+        pystray.MenuItem("แก้ไข config.json", lambda *_: _open(CONFIG_PATH)),
+        pystray.MenuItem("เปิดไฟล์ log", lambda *_: _open(LOG_PATH)),
+        pystray.MenuItem("เปิดโฟลเดอร์โปรแกรม", lambda *_: _open(BASE_DIR)),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem(f"เวอร์ชัน {APP_VERSION}", None, enabled=False),
+        pystray.MenuItem("ออกจากโปรแกรม", quit_app),
+    )
+    icon = pystray.Icon("discord-rpc", _tray_image(True), "Discord Rich Presence", menu)
+    icon.run()  # block จนกด "ออก"
 
 
 def main() -> None:
@@ -780,9 +903,14 @@ def main() -> None:
     if not IS_WINDOWS:
         log.error("This program requires Windows (uses Discord IPC + Windows media APIs).")
         return
+    ctl = Controller()
     try:
-        run()
+        if HAS_TRAY and "--no-tray" not in sys.argv:
+            run_with_tray(ctl)
+        else:
+            run(ctl)
     except KeyboardInterrupt:
+        ctl.stop.set()
         log.info("stopped by user")
 
 
