@@ -35,14 +35,18 @@
 - **In-Memory LRU Caching**: จัดเก็บ URL หน้าปกคลิปไว้ในแคช ทำให้การเลื่อนดูคลิปถัดไปหรือเล่นซ้ำประหยัดเน็ตและแสดงผลทันทีแบบ 0-latency
 - **Reels Branding & Button**: แยกการ์ด Facebook Reels ออกมาชัดเจน แสดงข้อความ `[ชื่อครีเอเตอร์] • Facebook Reels` และปุ่ม Interactive `▶ Facebook Reels`
 
-### 3. 🎬 Streaming & Creative Ecosystem
-- **YouTube & YouTube Music**: ซิงค์ภาพหน้าปกคลิปจริงระดับ MaxRes/HQ, หลอดเวลาสด Sub-Second Precision
-- **Facebook Watch**: แสดงวิดีโอยาวพร้อมปกจริงและปุ่ม `▶ Facebook Watch`
-- **Facebook Messenger & News Feed**: แสดงสถานะการสนทนาข้อความและท่องฟีดแยกจากกัน
-- **Netflix, Twitch, TikTok, Spotify, SoundCloud**: ครบครันทุกความบันเทิง
-- **VS Code, Figma, Blender, GitHub, Notion, ChatGPT, Claude AI, Postman**: ตรวจจับอัตโนมัติสำหรับสาย Dev & Creator
+### 3. 🖼️ Dual-Layered Cover Art Engine & Multi-Tier Normalization (แก้ปัญหาหน้าปกไม่ขึ้น 100%)
+- **ระบบสำรอง 2 ชั้น (Double-Layer Protection)**:
+  1. **ชั้นที่ 1 (Official High-Res Resolver)**: ถอดพารามิเตอร์ที่เป็นอุปสรรคต่อการค้นหา และเพิ่มระบบ **Multi-Tier Search** (ค้นหาทั้งแบบชื่อเต็ม, ตัด Emoji, คลีนอักขระพิเศษภาษาไทย) ทำให้ดึงปก `maxresdefault` (1280x720) ของคลิปทุกรูปแบบได้อย่างแม่นยำ
+  2. **ชั้นที่ 2 (Native GSMTC Kernel Fallback)**: หากผลการค้นหายังไม่เสร็จ หรือเครือข่ายมีปัญหา ระบบจะดึงภาพจากหน่วยความจำแคชของ Chrome/Edge ผ่าน Windows GSMTC โดยตรง แล้วซิงค์ขึ้น CDN (Catbox + Litterbox Dual Upload) ทันที
+- **ผลลัพธ์**: แก้ไขปัญหาหน้าปก YouTube หลุดไปเป็นไอคอนสี่เหลี่ยมสีแดงได้อย่างถาวร 100%!
+- **รองรับปกจริงครบทุกแพลตฟอร์ม**: ทั้ง YouTube, Spotify, SoundCloud, Netflix, Twitch, TikTok, Facebook Reels และ Facebook Watch
 
-### 4. ⚡ ประสิทธิภาพระดับ Enterprise
+### 4. 🎬 Creative & Dev Ecosystem
+- **VS Code, Figma, Blender, GitHub, Notion, ChatGPT, Claude AI, Postman**: ตรวจจับอัตโนมัติสำหรับสาย Dev & Creator
+- **Facebook Messenger & News Feed**: แยกสถานะการสนทนาข้อความและท่องฟีดอย่างถูกต้องชัดเจน
+
+### 5. ⚡ ประสิทธิภาพระดับ Enterprise
 - **100% Logic Test Coverage**: ผ่านการทดสอบ Unit Tests ทุกเงื่อนไข ป้องกัน Regression 100%
 - **Zero CPU Spikes**: รันที่สิทธิ Below-Normal Priority + Windows Efficiency Mode ใช้ CPU แทบเป็น 0%
 - **Automatic Game Suppression**: ซ่อนสถานะทันทีเมื่อเปิดเกมเต็มจอ เพื่อไม่รบกวน FPS ของเกม

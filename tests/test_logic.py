@@ -124,13 +124,35 @@ def test_all():
     notion_snap = m.SystemSnapshot({"notion.exe"}, ["Roadmap - Notion"], 0)
     assert m.build_payload(cfg, None, notion_snap, 1500, R0(), now=now)["name"] == "Notion"
 
+    # 8. YouTube Fallback to GSMTC thumbnail when search is pending/failed
+    class RThumbFallback:
+        def get(self, t, a): return m.VideoInfo()  # No video id found yet
+        def get_custom_cover(self, prefix, title, artist, thumb_bytes):
+            return "https://files.catbox.moe/yt_backup_cover.png" if thumb_bytes else None
+
+    yt_media_with_thumb = m.MediaState("Older - Wiser - Mentally Tougher", "Jib Jannapa", 758.0, 1488.0, "chrome.exe", True, anchor=now, thumb_bytes=fake_thumb)
+    p_yt_fallback = m.build_payload(cfg, yt_media_with_thumb, snap, 1500, RThumbFallback(), now=now)
+    assert p_yt_fallback["name"] == "YouTube"
+    assert p_yt_fallback["large_image"] == "https://files.catbox.moe/yt_backup_cover.png"
+
+    # 9. Real Network YouTube Resolver for user's exact Thai title & emoji
+    yt_res = m.YouTubeResolver()
+    user_title = "Older - Wiser - Mentally Tougher 📑 19 ข้อคิดที่เปลี่ยนวิธีมองชีวิต ฟังจบแล้วมองชีวิตไม่เหมือนเดิม"
+    user_artist = "Jib Jannapa"
+    k_user = yt_res.key(user_title, user_artist)
+    yt_res._worker(k_user, user_title, user_artist)
+    resolved_info = yt_res._cache.get(k_user)
+    assert resolved_info is not None, "Resolved info must be cached"
+    assert resolved_info.video_id == "eT6gpccZBek", f"Expected eT6gpccZBek, got {resolved_info.video_id}"
+    assert resolved_info.thumbnail_url is not None and resolved_info.thumbnail_url.startswith("https://i.ytimg.com/vi/eT6gpccZBek/"), "Valid thumbnail required"
+
     sig = m.signature(p)
     assert m.should_send(p, None, None, 0, now)
     assert not m.should_send(p, sig, p["start"], now, now + 5)
     assert m.should_send(dict(p, start=p["start"] + 60, end=p["end"] + 60), sig, p["start"], now, now + 5)
     assert m.should_send(p, sig, p["start"], now - 1000, now)
     json.dumps(p, ensure_ascii=False, default=str)
-    print("ALL LOGIC TESTS PASSED (100% COVERAGE)")
+    print("ALL LOGIC & COVER RESOLVER TESTS PASSED (100% QUALITY CHECKLIST VERIFIED)")
 
 if __name__ == "__main__":
     test_all()

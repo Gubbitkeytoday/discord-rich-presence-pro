@@ -371,12 +371,33 @@ class YouTubeResolver:
                 "Content-Type": f"multipart/form-data; boundary={boundary}",
                 "User-Agent": "Mozilla/5.0"
             })
-            with urllib.request.urlopen(req, timeout=8) as resp:
+            with urllib.request.urlopen(req, timeout=6) as resp:
                 res = resp.read().decode("utf-8").strip()
                 if res.startswith("http"):
                     url = res
         except Exception as e:
             log.debug("custom cover upload error: %s", e)
+
+        # Fallback to Litterbox
+        if not url:
+            try:
+                boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW"
+                body = io.BytesIO()
+                body.write(f"--{boundary}\r\nContent-Disposition: form-data; name=\"reqtype\"\r\n\r\nfileupload\r\n".encode())
+                body.write(f"--{boundary}\r\nContent-Disposition: form-data; name=\"time\"\r\n\r\n24h\r\n".encode())
+                body.write(f"--{boundary}\r\nContent-Disposition: form-data; name=\"fileToUpload\"; filename=\"cover.png\"\r\nContent-Type: image/png\r\n\r\n".encode())
+                body.write(data)
+                body.write(f"\r\n--{boundary}--\r\n".encode())
+                req = urllib.request.Request("https://litterbox.catbox.moe/resources/internals/api.php", data=body.getvalue(), headers={
+                    "Content-Type": f"multipart/form-data; boundary={boundary}",
+                    "User-Agent": "Mozilla/5.0"
+                })
+                with urllib.request.urlopen(req, timeout=6) as resp:
+                    res = resp.read().decode("utf-8").strip()
+                    if res.startswith("http"):
+                        url = res
+            except Exception as e:
+                log.debug("litterbox upload fallback error: %s", e)
 
         with self._lock:
             self._pending.discard(k)
@@ -410,11 +431,30 @@ class YouTubeResolver:
     def _worker(self, k: str, title: str, artist: str) -> None:
         info = VideoInfo(ready=True)
         try:
-            q = urllib.parse.quote_plus(f"{title} {artist}".strip())
-            # sp=EgIQAQ%3D%3D = filter "Video" only (ตัด Shorts/Playlist/Channel ออก)
-            url = f"https://www.youtube.com/results?search_query={q}&sp=EgIQAQ%253D%253D&hl=en"
-            html = self._fetch(url, 6)
-            if html:
+            clean_t = re.sub(r"[^\w\s\u0E00-\u0E7F-]", " ", clean_title(title))
+            clean_t = re.sub(r"\s+", " ", clean_t).strip()
+
+            queries = []
+            if title and artist:
+                queries.append(f"{title} {artist}".strip())
+            if clean_t and artist and clean_t != title:
+                queries.append(f"{clean_t} {artist}".strip())
+            if title:
+                queries.append(title.strip())
+            if clean_t and clean_t != title:
+                queries.append(clean_t.strip())
+
+            seen = set()
+            unique_queries = [q for q in queries if q and not (q in seen or seen.add(q))]
+
+            for q_raw in unique_queries:
+                q = urllib.parse.quote_plus(q_raw)
+                # DO NOT use sp=EgIQAQ%3D%3D because it breaks queries with emojis/Thai text on modern YouTube
+                url = f"https://www.youtube.com/results?search_query={q}&hl=en"
+                html = self._fetch(url, 6)
+                if not html:
+                    continue
+
                 m = re.search(r'"videoRenderer":\{"videoId":"([A-Za-z0-9_-]{11})"', html)
                 if not m:
                     m = re.search(r'"videoId":"([A-Za-z0-9_-]{11})"', html)
@@ -427,13 +467,16 @@ class YouTubeResolver:
                     if ch:
                         info.channel_url = "https://www.youtube.com" + ch.group(1)
                     info.thumbnail_url = self._best_thumbnail(vid)
+                    break
+
             if not info.video_id:
-                info.video_url = f"https://www.youtube.com/results?search_query={q}"
+                primary_q = urllib.parse.quote_plus(f"{title} {artist}".strip())
+                info.video_url = f"https://www.youtube.com/results?search_query={primary_q}"
                 info.expires = time.monotonic() + 120  # ลองใหม่ใน 2 นาที
         except Exception as e:  # pragma: no cover
             log.debug("resolver error: %s", e)
         self._store(k, info)
-        log.debug("resolved %s -> %s", title[:40], info.video_id)
+        log.debug("resolved %s -> %s (thumb: %s)", title[:40], info.video_id, bool(info.thumbnail_url))
 
     def _fetch(self, url: str, timeout: int) -> Optional[str]:
         req = urllib.request.Request(url, headers=self.HEADERS)
@@ -790,30 +833,40 @@ def build_payload(cfg: Config, media: Optional[MediaState], snap: SystemSnapshot
         elif kind == "netflix":
             app_name = "Netflix"
             icon = ICONS["netflix"]
+            net_cover = resolver.get_custom_cover("netflix", title, artist, media.thumb_bytes)
+            cover = net_cover if (cfg["show_cover_art"] and net_cover) else None
             display_title = title or "รับชมภาพยนตร์ / ซีรีส์"
             display_state = artist if artist else "Netflix Original / Series"
             btn_primary = {"label": "▶ Netflix", "url": "https://www.netflix.com"}
         elif kind == "twitch":
             app_name = "Twitch"
             icon = ICONS["twitch"]
+            tw_cover = resolver.get_custom_cover("twitch", title, artist, media.thumb_bytes)
+            cover = tw_cover if (cfg["show_cover_art"] and tw_cover) else None
             display_title = title or "รับชม Live Stream"
             display_state = f"Streamer: {artist}" if artist else "Twitch Live Stream"
             btn_primary = {"label": "▶ Twitch", "url": "https://www.twitch.tv"}
         elif kind == "tiktok":
             app_name = "TikTok"
             icon = ICONS["tiktok"]
+            tt_cover = resolver.get_custom_cover("tiktok", title, artist, media.thumb_bytes)
+            cover = tt_cover if (cfg["show_cover_art"] and tt_cover) else None
             display_title = title or "TikTok Trends • FYP"
             display_state = artist if artist else "TikTok Trends • FYP"
             btn_primary = {"label": "▶ TikTok", "url": "https://www.tiktok.com"}
         elif kind == "soundcloud":
             app_name = "SoundCloud"
             icon = ICONS["soundcloud"]
+            sc_cover = resolver.get_custom_cover("soundcloud", title, artist, media.thumb_bytes)
+            cover = sc_cover if (cfg["show_cover_art"] and sc_cover) else None
             display_title = title
             display_state = artist if artist else "SoundCloud Audio"
             btn_primary = {"label": "▶ SoundCloud", "url": "https://soundcloud.com"}
         elif kind == "spotify":
             app_name = "Spotify"
             icon = ICONS["spotify"]
+            sp_cover = resolver.get_custom_cover("spotify", title, artist, media.thumb_bytes)
+            cover = sp_cover if (cfg["show_cover_art"] and sp_cover) else None
             display_title = title
             display_state = artist if artist else "Spotify Music"
             btn_primary = {"label": "▶ Spotify", "url": "https://open.spotify.com"}
@@ -821,6 +874,10 @@ def build_payload(cfg: Config, media: Optional[MediaState], snap: SystemSnapshot
             app_name = "YouTube Music" if kind == "youtube_music" else "YouTube"
             icon = ICONS["youtube_music"] if kind == "youtube_music" else ICONS["youtube"]
             cover = info.thumbnail_url if (cfg["show_cover_art"] and info.thumbnail_url) else None
+            if not cover and cfg["show_cover_art"] and media.thumb_bytes:
+                yt_custom = resolver.get_custom_cover("youtube", title, artist, media.thumb_bytes)
+                if yt_custom:
+                    cover = yt_custom
             display_title = title
             display_state = artist if artist else app_name
             btn_label = S["listen_btn"] if listening else S["watch_btn"]

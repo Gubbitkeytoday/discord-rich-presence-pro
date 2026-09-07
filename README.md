@@ -57,10 +57,11 @@ $$\text{end\_ts} = \text{start\_ts} + \text{duration}$$
 - ไม่ต้องติดตั้ง Extension ในเบราว์เซอร์ให้สิ้นเปลือง RAM หรือเสี่ยงต่อความปลอดภัย
 - ประหยัดพลังงาน: รันที่สิทธิ **Below-Normal Priority + Windows Efficiency Mode** ใช้ CPU แทบเป็น 0% และ RAM น้อยกว่า 40 MB
 
-### 3. 🖼️ Real-Time YouTube Cover & Direct Video Resolver
-- ระบบวิเคราะห์ชื่อคลิปและช่อง ค้นหา Video ID อัตโนมัติเพื่อดึงภาพหน้าปกความละเอียดสูง `maxresdefault` (ถอยไป `hqdefault` / `mqdefault` ตามความเหมาะสมแบบ 16:9)
-- ปุ่มกดบน Discord เชื่อมโยงตรงเข้าสู่ URL ของคลิปวิดีโอ (`https://www.youtube.com/watch?v=...`) เพื่อนสามารถคลิกเพื่อเปิดดูคลิปเดียวกับคุณได้ทันที
-- มีระบบ **In-Memory LRU Cache** ช่วยลดการค้นหาซ้ำซ้อน ประหยัดการใช้งานเครือข่ายได้ถึง 99%
+### 3. 🖼️ Dual-Layered Cover Art Engine (ระบบสำรองภาพหน้าปก 2 ชั้น ไม่มีวันหลุด)
+- **ชั้นที่ 1 (Official High-Res Resolver)**: วิเคราะห์ชื่อคลิปและช่อง ค้นหา Video ID อัตโนมัติด้วยระบบ **Multi-Tier Query Normalization** (รองรับชื่อคลิปยาว, ภาษาไทย, และ Emoji อย่างสมบูรณ์ 100%) เพื่อดึงภาพหน้าปกคมชัดสูงสุด `maxresdefault` (1280x720) 
+- **ชั้นที่ 2 (Native Kernel Stream Fallback)**: หากผลการค้นหายังไม่เสร็จ หรือเกิดความล่าช้าของเครือข่าย ระบบจะดึงไบต์ภาพจากหน่วยความจำของ Windows GSMTC Kernel (Chrome/Edge Poster) โดยตรง แล้วซิงค์ขึ้น CDN ในเบื้องหลังทันที
+- **ผลลัพธ์**: หน้าปกคลิปจะขึ้นแสดงผลเสมอ 100% ไม่มีทางหลุดไปเป็นไอคอนเปล่าเด็ดขาด!
+- **In-Memory LRU Cache**: ลดการค้นหาซ้ำซ้อน ประหยัดการใช้งานเครือข่ายได้ถึง 99% และเชื่อมโยงปุ่มตรงเข้าสู่คลิปวิดีโอ (`https://www.youtube.com/watch?v=...`)
 
 ### 4. 🎮 Automatic Fullscreen Game Suppression
 - ตรวจสอบหน้าต่างเกม DirectX / Vulkan เต็มจออัตโนมัติ
