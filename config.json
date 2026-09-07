@@ -1,0 +1,14 @@
+{
+  "client_id": "1546386469353160804",
+  "update_interval_seconds": 5,
+  "buttons": [
+    {
+      "label": "📺 Open YouTube",
+      "url": "https://www.youtube.com"
+    },
+    {
+      "label": "⚡ Antigravity AI",
+      "url": "https://github.com"
+    }
+  ]
+}
