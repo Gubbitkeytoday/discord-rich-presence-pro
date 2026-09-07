@@ -70,6 +70,15 @@ $$\text{end\_ts} = \text{start\_ts} + \text{duration}$$
 - ตรวจจับการทำงานของ **Visual Studio Code** ควบคู่ไปกับเสียงเพลง
 - แสดงผลแบบไฮบริด: บอกทั้งชื่อไฟล์/Workspace ที่กำลังเขียนโค้ดอยู่ พร้อมโชว์เพลงที่กำลังฟังคลออยู่เบื้องหลัง
 
+### 6. 🎯 Smart Window-Media Content Isolation & Background Tab Protection
+- **ระบบจับคู่อัจฉริยะ (Content Matching Engine)**: วิเคราะห์ชื่อคลิป, ศิลปิน และคำสำคัญเทียบกับ Window Title แบบ 1-to-1
+- **หมดปัญหาแท็บเบื้องหลังแย่งสถานะ**: แม้คุณจะเปิดแท็บ Facebook ทิ้งไว้ในพื้นหลัง แต่กำลังฟังเพลงหรือดูคลิปบน YouTube อยู่ ระบบจะรู้ทันทีว่าเสียงมาจาก YouTube และไม่นำ Facebook มาสวมรอยเด็ดขาด
+- **แยกแยะประเภทสื่อแม่นยำ**: วิดีโอสั้น (<180 วิ) หรือแท็บ Reels จะถูกจัดเข้าสู่ Facebook Reels โดยเฉพาะ ส่วนคลิปยาวจะถูกจัดเข้าสู่แพลตฟอร์มที่ถูกต้อง
+
+### 7. 📱 Facebook Reels Real Cover Art & Native GSMTC Stream
+- **ดึงภาพหน้าปกคลิป Reels จริงจาก Kernel Memory**: สกัดข้อมูล `IRandomAccessStreamReference` จาก Windows GSMTC โดยตรง ได้ภาพโปสเตอร์ของคลิป Reel แท้ๆ จาก Chrome/Edge
+- **Non-blocking Asynchronous CDN Upload**: อัปโหลดภาพไปยัง High-Speed CDN ใน Background Daemon Thread พร้อมระบบ LRU Cache ทำให้หน้าปกขึ้นบน Discord ชัดเจน สวยงาม โดยที่ลูปหลักของ Discord RPC ไม่กระตุกแม้แต่วินาทีเดียว
+
 ---
 
 ## 🏗️ สถาปัตยกรรมการทำงานของระบบ (System Architecture)
@@ -115,7 +124,9 @@ flowchart TD
 | :--- | :--- | :--- | :--- |
 | **YouTube** | 📺 Watching | รูปปกคลิปจริง (MaxRes/HQ), ชื่อคลิป, ชื่อช่อง, หลอดเวลาสด | `▶ ดูคลิปนี้บน YouTube` |
 | **YouTube Music** | 🎵 Listening | รูปปกอัลบั้ม/เพลงจริง, ชื่อเพลง, ศิลปิน, หลอดเวลาสด | `▶ ฟังเพลงนี้` |
-| **Facebook** | 📺 Watching / Feed | วิดีโอ/Reels (Facebook Watch), ท่องฟีด (News Feed) | `▶ Facebook Watch` / `🌐 Facebook` |
+| **Facebook Reels** | 📱 Watching | ภาพปก Reel จริง (Native Poster), ชื่อคลิป/ครีเอเตอร์, หลอดเวลาสด | `▶ Facebook Reels` |
+| **Facebook Watch** | 📺 Watching | ภาพปกคลิปจริง, วิดีโอ/ไลฟ์สตรีม, ชื่อคลิป/เพจ, หลอดเวลาสด | `▶ Facebook Watch` |
+| **Facebook Feed** | 🌐 Browsing | กำลังท่องฟีดข่าว (News Feed • สังคมออนไลน์) | `🌐 Facebook` |
 | **Facebook Messenger** | 💬 Messaging | แสดงสถานะกำลังสนทนาข้อความ พร้อมไอคอน Messenger | `💬 Messenger` |
 | **Netflix** | 🍿 Watching | ชื่อภาพยนตร์/ซีรีส์ที่กำลังรับชม พร้อมโลโก้ Netflix คมชัด | `▶ Netflix` |
 | **Twitch** | 🟣 Watching | สตรีมสด, ชื่อสตรีมเมอร์ และแชนเนล | `▶ Twitch` |
@@ -144,7 +155,7 @@ flowchart TD
 ### 📦 วิธีที่ง่ายที่สุดสำหรับทุกคน: ดาวน์โหลด .EXE สำเร็จรูป (ไม่ต้องลง Python)
 > **ทุกคนสามารถดาวน์โหลดไฟล์สำเร็จรูปไปเปิดใช้งานได้ทันที ไม่ต้องติดตั้งโปรแกรมอะไรเพิ่ม:**
 > 
-> 👉 **[ดาวน์โหลด DiscordRichPresence-windows-x64.zip (GitHub Releases v2.1.0)](https://github.com/Gubbitkeytoday/discord-rich-presence-pro/releases/latest)**
+> 👉 **[ดาวน์โหลด DiscordRichPresence-windows-x64.zip (GitHub Releases v2.2.0)](https://github.com/Gubbitkeytoday/discord-rich-presence-pro/releases/latest)**
 > 
 > 1. ดาวน์โหลดไฟล์ `DiscordRichPresence-windows-x64.zip` แล้วแตกไฟล์
 > 2. ดับเบิลคลิกเปิด **`DiscordRichPresence.exe`** ใช้งานได้ทันที มีไอคอนขึ้นที่ System Tray ข้างนาฬิกา!

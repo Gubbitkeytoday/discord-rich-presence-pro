@@ -17,8 +17,12 @@ def test_all():
         def get(self, t, a):
             return m.VideoInfo("abc12345678", "https://www.youtube.com/watch?v=abc12345678",
                                "https://www.youtube.com/@eyeta", "https://i.ytimg.com/vi/abc12345678/maxresdefault.jpg", True)
+        def get_custom_cover(self, prefix, title, artist, thumb_bytes):
+            return "https://files.catbox.moe/reel_cover.png" if thumb_bytes else None
+
     class R0:
         def get(self, t, a): return m.VideoInfo()
+        def get_custom_cover(self, prefix, title, artist, thumb_bytes): return None
     class C:
         data = dict(m.DEFAULT_CONFIG); strings = m.STRINGS["th"]
         def __getitem__(s, k): return s.data.get(k)
@@ -51,11 +55,29 @@ def test_all():
     assert p5["large_image"] == m.ICONS["youtube"] and "details_url" not in p5
 
     # ---- Tests for Facebook & Streaming & Desktop Apps ----
-    # 1. Facebook Media
-    fb_media = m.MediaState("Reels Video Highlight", "Page Official", 10.0, 60.0, "chrome.exe", True, anchor=now)
-    fb_snap = m.SystemSnapshot({"chrome.exe"}, ["(2) Watch | Facebook - Google Chrome"], 0)
+    # 1. YouTube playing while user scrolls Facebook Feed in another tab:
+    #    Must NOT misclassify as Facebook!
+    yt_long_media = m.MediaState("Older - Wiser - Mentally Tougher", "Jib Jannapa", 239.0, 1488.0, "chrome.exe", True, anchor=now)
+    fb_feed_snap = m.SystemSnapshot({"chrome.exe"}, ["(5) Facebook - Google Chrome"], 0)
+    p_yt_with_fb = m.build_payload(cfg, yt_long_media, fb_feed_snap, 1500, R(), now=now)
+    assert p_yt_with_fb["name"] == "YouTube" and p_yt_with_fb["activity_type"] == m.ActivityType.WATCHING
+    assert p_yt_with_fb["large_image"].endswith("maxresdefault.jpg")
+    assert "YouTube" in p_yt_with_fb["buttons"][0]["label"]
+
+    # 2. Facebook Reels with real cover art from GSMTC:
+    fake_thumb = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
+    reel_media = m.MediaState("เทคนิคทำงานไวขึ้น 10 เท่า #reels", "Creator Name", 10.0, 45.0, "chrome.exe", True, anchor=now, thumb_bytes=fake_thumb)
+    reel_snap = m.SystemSnapshot({"chrome.exe"}, ["(1) Reels | Facebook - Google Chrome"], 0)
+    p_reel = m.build_payload(cfg, reel_media, reel_snap, 1500, R(), now=now)
+    assert p_reel["name"] == "Facebook Reels" and p_reel["activity_type"] == m.ActivityType.WATCHING
+    assert p_reel["large_image"] == "https://files.catbox.moe/reel_cover.png"
+    assert "Facebook Reels" in p_reel["buttons"][0]["label"]
+
+    # 3. Facebook Watch Media
+    fb_media = m.MediaState("Highlight Match Final", "Official Page", 100.0, 900.0, "chrome.exe", True, anchor=now)
+    fb_snap = m.SystemSnapshot({"chrome.exe"}, ["Watch | Facebook - Google Chrome"], 0)
     p_fb = m.build_payload(cfg, fb_media, fb_snap, 1500, R0(), now=now)
-    assert p_fb["name"] == "Facebook" and p_fb["activity_type"] == m.ActivityType.WATCHING
+    assert p_fb["name"] == "Facebook Watch" and p_fb["activity_type"] == m.ActivityType.WATCHING
     assert p_fb["large_image"] == m.ICONS["facebook"]
     assert "Facebook Watch" in p_fb["buttons"][0]["label"]
 

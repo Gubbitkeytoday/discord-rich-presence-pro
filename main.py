@@ -17,6 +17,7 @@ Discord Rich Presence Pro
 from __future__ import annotations
 
 import asyncio
+import io
 import json
 import logging
 import os
@@ -138,9 +139,12 @@ STRINGS = {
         "watch_btn": "▶ ดูคลิปนี้บน YouTube",
         "listen_btn": "▶ ฟังเพลงนี้",
         "channel": "ช่อง",
-        "fb_watch": "รับชมวิดีโอ / Reels บน Facebook",
-        "fb_state": "Facebook Watch • Reels",
+        "fb_watch": "รับชมวิดีโอบน Facebook",
+        "fb_state": "Facebook Watch",
         "fb_btn": "▶ Facebook Watch",
+        "fb_reel": "วิดีโอสั้น Facebook Reels",
+        "fb_reel_state": "Facebook Reels • คลิปสั้น",
+        "fb_reel_btn": "▶ Facebook Reels",
         "fb_feed": "กำลังท่องฟีด Facebook",
         "fb_feed_state": "News Feed • สังคมออนไลน์",
         "messenger": "Facebook Messenger",
@@ -160,9 +164,12 @@ STRINGS = {
         "watch_btn": "▶ Watch on YouTube",
         "listen_btn": "▶ Listen",
         "channel": "Channel",
-        "fb_watch": "Watching Video / Reels on Facebook",
-        "fb_state": "Facebook Watch • Reels",
+        "fb_watch": "Watching Video on Facebook",
+        "fb_state": "Facebook Watch",
         "fb_btn": "▶ Facebook Watch",
+        "fb_reel": "Short Video on Facebook Reels",
+        "fb_reel_state": "Facebook Reels • Short Videos",
+        "fb_reel_btn": "▶ Facebook Reels",
         "fb_feed": "Browsing Facebook Feed",
         "fb_feed_state": "News Feed • Social Network",
         "messenger": "Facebook Messenger",
@@ -326,6 +333,7 @@ class YouTubeResolver:
 
     def __init__(self, max_items: int = 200):
         self._cache: "OrderedDict[str, VideoInfo]" = OrderedDict()
+        self._custom_cache: "OrderedDict[str, str]" = OrderedDict()
         self._pending: set[str] = set()
         self._lock = threading.Lock()
         self._max = max_items
@@ -333,6 +341,49 @@ class YouTubeResolver:
     @staticmethod
     def key(title: str, artist: str) -> str:
         return f"{title.lower()}::{artist.lower()}".strip()
+
+    def get_custom_cover(self, prefix: str, title: str, artist: str, thumb_bytes: Optional[bytes]) -> Optional[str]:
+        """ดึงรูปหน้าปกของ Facebook Reels / Watch หรือบริการอื่นจาก GSMTC thumbnail โดยอัปโหลด background CDN"""
+        if not thumb_bytes:
+            return None
+        k = f"{prefix}::{title.lower()}::{artist.lower()}".strip()
+        with self._lock:
+            if k in self._custom_cache:
+                self._custom_cache.move_to_end(k)
+                return self._custom_cache[k]
+            if k in self._pending:
+                return None
+            self._pending.add(k)
+        threading.Thread(target=self._custom_upload_worker, args=(k, thumb_bytes), daemon=True, name="cover-uploader").start()
+        return None
+
+    def _custom_upload_worker(self, k: str, data: bytes) -> None:
+        url = None
+        try:
+            boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW"
+            body = io.BytesIO()
+            body.write(f"--{boundary}\r\nContent-Disposition: form-data; name=\"reqtype\"\r\n\r\nfileupload\r\n".encode())
+            body.write(f"--{boundary}\r\nContent-Disposition: form-data; name=\"fileToUpload\"; filename=\"cover.png\"\r\nContent-Type: image/png\r\n\r\n".encode())
+            body.write(data)
+            body.write(f"\r\n--{boundary}--\r\n".encode())
+
+            req = urllib.request.Request("https://catbox.moe/user/api.php", data=body.getvalue(), headers={
+                "Content-Type": f"multipart/form-data; boundary={boundary}",
+                "User-Agent": "Mozilla/5.0"
+            })
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                res = resp.read().decode("utf-8").strip()
+                if res.startswith("http"):
+                    url = res
+        except Exception as e:
+            log.debug("custom cover upload error: %s", e)
+
+        with self._lock:
+            self._pending.discard(k)
+            if url:
+                self._custom_cache[k] = url
+                while len(self._custom_cache) > self._max:
+                    self._custom_cache.popitem(last=False)
 
     def get(self, title: str, artist: str) -> VideoInfo:
         k = self.key(title, artist)
@@ -419,6 +470,7 @@ class MediaState:
     app: str
     playing: bool
     anchor: float = 0.0  # epoch (วินาที) ตอนที่ Windows วัดค่า position — ใช้คำนวณเวลาให้ตรงเสี้ยววินาที
+    thumb_bytes: Optional[bytes] = None
 
     def position_at(self, now: float) -> float:
         """ตำแหน่งจริง ณ เวลา now (ถ้ากำลังเล่น เวลาเดินต่อจาก anchor)"""
@@ -545,6 +597,24 @@ class WindowsProbe:
                 anchor = tl.last_updated_time.timestamp()
         except Exception:
             anchor = 0.0
+
+        thumb_bytes = None
+        if props and props.thumbnail:
+            try:
+                stream = await props.thumbnail.open_read_async()
+                if stream and 0 < stream.size < 5_000_000:
+                    try:
+                        import winsdk.windows.storage.streams as _ss
+                    except ImportError:
+                        import winrt.windows.storage.streams as _ss
+                    reader = _ss.DataReader(stream)
+                    await reader.load_async(stream.size)
+                    buf = bytearray(stream.size)
+                    reader.read_bytes(buf)
+                    thumb_bytes = bytes(buf)
+            except Exception as e:
+                log.debug("thumbnail extraction skipped: %s", e)
+
         return MediaState(
             title=title,
             artist=(props.artist or "").strip(),
@@ -553,6 +623,7 @@ class WindowsProbe:
             app=(chosen.source_app_user_model_id or "").lower(),
             playing=playing,
             anchor=anchor,
+            thumb_bytes=thumb_bytes,
         )
 
     # ---- make ourselves a good neighbour to games ----
@@ -575,15 +646,23 @@ class WindowsProbe:
 #  Presence builder (pure function -> easy to test)                            #
 # --------------------------------------------------------------------------- #
 def classify_media(media: MediaState, titles: list[str]) -> str:
-    """'youtube_music' | 'spotify' | 'youtube' | 'facebook' | 'netflix' | 'twitch' | 'tiktok' | 'soundcloud' | 'other'"""
+    """
+    Returns one of:
+    'youtube_music' | 'spotify' | 'youtube' | 'facebook_reel' | 'facebook_watch' |
+    'netflix' | 'twitch' | 'tiktok' | 'soundcloud' | 'other'
+    """
     app = media.app.lower()
     m_title = media.title.lower()
     m_artist = media.artist.lower()
 
     if "spotify" in app:
         return "spotify"
-    if "netflix" in app or "netflix" in m_title:
+    if "netflix" in app:
         return "netflix"
+
+    # 1) ตรวจสอบจากชื่อคลิป/ศิลปินที่ GSMTC ส่งมาโดยตรง
+    if "youtube music" in m_title or "youtube music" in m_artist:
+        return "youtube_music"
     if "soundcloud" in m_title or "soundcloud" in m_artist:
         return "soundcloud"
     if "twitch" in m_title or "twitch" in m_artist:
@@ -591,9 +670,53 @@ def classify_media(media: MediaState, titles: list[str]) -> str:
     if "tiktok" in m_title or "tiktok" in m_artist:
         return "tiktok"
     if "facebook" in m_title or "facebook" in m_artist:
-        return "facebook"
+        if "reel" in m_title or "reel" in m_artist or (0 < media.duration <= 90):
+            return "facebook_reel"
+        return "facebook_watch"
 
+    # 2) ตรวจสอบความสอดคล้องกับหัวหน้าต่าง (Content Matching)
+    clean_t = clean_title(media.title).lower()
+    keywords = [w for w in re.split(r"[\s\-_|()\[\]]+", clean_t) if len(w) >= 3]
+
+    matching_window = None
+    for t in titles:
+        lt = t.lower()
+        if clean_t and (clean_t in lt or (len(keywords) >= 2 and sum(1 for k in keywords if k in lt) >= max(2, len(keywords) // 2))):
+            matching_window = lt
+            break
+        if m_artist and len(m_artist) >= 3 and m_artist in lt:
+            matching_window = lt
+            break
+
+    if matching_window:
+        if "youtube music" in matching_window:
+            return "youtube_music"
+        if "youtube" in matching_window:
+            return "youtube"
+        if "reel" in matching_window:
+            return "facebook_reel"
+        if "facebook" in matching_window or "fb.watch" in matching_window:
+            if "reel" in matching_window or (0 < media.duration <= 90):
+                return "facebook_reel"
+            return "facebook_watch"
+        if "netflix" in matching_window:
+            return "netflix"
+        if "twitch" in matching_window:
+            return "twitch"
+        if "tiktok" in matching_window:
+            return "tiktok"
+        if "soundcloud" in matching_window:
+            return "soundcloud"
+
+    # 3) กรณีเป็นแท็บเบื้องหลัง หรือไม่พบชื่อตรงๆ ในหัวหน้าต่าง
     lower_titles = [t.lower() for t in titles]
+
+    # ถ้าหัวหน้าต่างระบุชัดเจนว่าเปิดหน้า Reels หรือ Watch โดยเฉพาะ
+    if any("reels | facebook" in t or " - reels" in t for t in lower_titles):
+        if media.duration <= 180 or media.duration == 0:
+            return "facebook_reel"
+    if any("watch | facebook" in t or "facebook watch" in t for t in lower_titles):
+        return "facebook_watch"
 
     if any("youtube music" in t for t in lower_titles):
         return "youtube_music"
@@ -607,9 +730,8 @@ def classify_media(media: MediaState, titles: list[str]) -> str:
         return "tiktok"
     if any("soundcloud" in t for t in lower_titles):
         return "soundcloud"
-    if any("facebook" in t or "fb.watch" in t for t in lower_titles):
-        return "facebook"
 
+    # สำหรับ Browser media ทั่วไปที่เล่นคลิป/เพลงอยู่
     if any(b.split(".")[0] in app for b in BROWSERS):
         return "youtube"
     return "other"
@@ -648,52 +770,58 @@ def build_payload(cfg: Config, media: Optional[MediaState], snap: SystemSnapshot
         if kind in ("youtube", "youtube_music"):
             info = resolver.get(title, artist)
 
-        cover = info.thumbnail_url if (cfg["show_cover_art"] and info.thumbnail_url) else None
-
-        icon_map = {
-            "youtube": ICONS["youtube"],
-            "youtube_music": ICONS["youtube_music"],
-            "spotify": ICONS["spotify"],
-            "facebook": ICONS["facebook"],
-            "netflix": ICONS["netflix"],
-            "twitch": ICONS["twitch"],
-            "tiktok": ICONS["tiktok"],
-            "soundcloud": ICONS["soundcloud"],
-        }
-        name_map = {
-            "youtube": "YouTube",
-            "youtube_music": "YouTube Music",
-            "spotify": "Spotify",
-            "facebook": "Facebook",
-            "netflix": "Netflix",
-            "twitch": "Twitch",
-            "tiktok": "TikTok",
-            "soundcloud": "SoundCloud",
-        }
-        icon = icon_map.get(kind, ICONS["windows"])
-        app_name = name_map.get(kind, "Media")
-
-        if kind == "facebook":
-            if not title or title.lower() in ("facebook", "watch", "reels", "video"):
-                title = S.get("fb_watch", "รับชมวิดีโอ / Reels บน Facebook")
-            display_state = f"{artist} • Facebook Watch" if artist else S.get("fb_state", "Facebook Watch • Reels")
+        cover = None
+        if kind == "facebook_reel":
+            app_name = "Facebook Reels"
+            icon = ICONS["facebook"]
+            fb_cover = resolver.get_custom_cover("fb_reel", title, artist, media.thumb_bytes)
+            cover = fb_cover if (cfg["show_cover_art"] and fb_cover) else None
+            display_title = title if (title and title.lower() not in ("facebook", "watch", "reels", "video")) else S.get("fb_reel", "วิดีโอสั้น Facebook Reels")
+            display_state = f"{artist} • Facebook Reels" if artist else S.get("fb_reel_state", "Facebook Reels • คลิปสั้น")
+            btn_primary = {"label": fit_button(S.get("fb_reel_btn", "▶ Facebook Reels")), "url": "https://www.facebook.com/reels"}
+        elif kind == "facebook_watch":
+            app_name = "Facebook Watch"
+            icon = ICONS["facebook"]
+            fb_cover = resolver.get_custom_cover("fb_watch", title, artist, media.thumb_bytes)
+            cover = fb_cover if (cfg["show_cover_art"] and fb_cover) else None
+            display_title = title if (title and title.lower() not in ("facebook", "watch", "reels", "video")) else S.get("fb_watch", "รับชมวิดีโอบน Facebook")
+            display_state = f"{artist} • Facebook Watch" if artist else S.get("fb_state", "Facebook Watch")
             btn_primary = {"label": fit_button(S.get("fb_btn", "▶ Facebook Watch")), "url": "https://www.facebook.com/watch"}
         elif kind == "netflix":
+            app_name = "Netflix"
+            icon = ICONS["netflix"]
+            display_title = title or "รับชมภาพยนตร์ / ซีรีส์"
             display_state = artist if artist else "Netflix Original / Series"
             btn_primary = {"label": "▶ Netflix", "url": "https://www.netflix.com"}
         elif kind == "twitch":
+            app_name = "Twitch"
+            icon = ICONS["twitch"]
+            display_title = title or "รับชม Live Stream"
             display_state = f"Streamer: {artist}" if artist else "Twitch Live Stream"
             btn_primary = {"label": "▶ Twitch", "url": "https://www.twitch.tv"}
         elif kind == "tiktok":
+            app_name = "TikTok"
+            icon = ICONS["tiktok"]
+            display_title = title or "TikTok Trends • FYP"
             display_state = artist if artist else "TikTok Trends • FYP"
             btn_primary = {"label": "▶ TikTok", "url": "https://www.tiktok.com"}
         elif kind == "soundcloud":
+            app_name = "SoundCloud"
+            icon = ICONS["soundcloud"]
+            display_title = title
             display_state = artist if artist else "SoundCloud Audio"
             btn_primary = {"label": "▶ SoundCloud", "url": "https://soundcloud.com"}
         elif kind == "spotify":
+            app_name = "Spotify"
+            icon = ICONS["spotify"]
+            display_title = title
             display_state = artist if artist else "Spotify Music"
             btn_primary = {"label": "▶ Spotify", "url": "https://open.spotify.com"}
         else:  # youtube / youtube_music
+            app_name = "YouTube Music" if kind == "youtube_music" else "YouTube"
+            icon = ICONS["youtube_music"] if kind == "youtube_music" else ICONS["youtube"]
+            cover = info.thumbnail_url if (cfg["show_cover_art"] and info.thumbnail_url) else None
+            display_title = title
             display_state = artist if artist else app_name
             btn_label = S["listen_btn"] if listening else S["watch_btn"]
             btn_primary = {"label": fit_button(btn_label), "url": info.video_url}
@@ -702,9 +830,9 @@ def build_payload(cfg: Config, media: Optional[MediaState], snap: SystemSnapshot
             "name": app_name,
             "activity_type": ActivityType.LISTENING if listening else ActivityType.WATCHING,
             "status_display_type": StatusDisplayType.DETAILS,
-            "details": fit(title),
+            "details": fit(display_title),
             "large_image": cover or icon,
-            "large_text": fit(title),
+            "large_text": fit(display_title),
             "small_image": icon,
             "small_text": app_name,
         }
