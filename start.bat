@@ -1,20 +1,14 @@
 @echo off
+chcp 65001 >nul
 title Discord Rich Presence - Antigravity Edition
 cd /d "%~dp0"
 
-echo ========================================================
-echo   Starting Discord Rich Presence...
-echo ========================================================
-
 if not exist ".venv\Scripts\python.exe" (
-    echo [!] Virtual environment not found. Setting up...
+    echo [!] Creating virtual environment...
     python -m venv .venv
-    call .venv\Scripts\activate.bat
-    pip install -r requirements.txt
-) else (
-    call .venv\Scripts\activate.bat
+    ".venv\Scripts\python.exe" -m pip install --quiet --upgrade pip
+    ".venv\Scripts\python.exe" -m pip install --quiet -r requirements.txt
 )
 
-python main.py
-
+".venv\Scripts\python.exe" main.py %*
 pause

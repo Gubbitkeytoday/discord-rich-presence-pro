@@ -1,175 +1,98 @@
-# ⚡ Antigravity Discord Rich Presence (Senior Pro Edition)
+# Discord Rich Presence — Antigravity Edition v2
 
-<div align="center">
-
-![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![Discord](https://img.shields.io/badge/Discord-RPC%20IPC-5865F2?style=for-the-badge&logo=discord&logoColor=white)
-![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011%20GSMTC-0078D6?style=for-the-badge&logo=windows&logoColor=white)
-![Architecture](https://img.shields.io/badge/Architecture-Event--Driven%20Anchor%20Sync-2ea44f?style=for-the-badge)
-![License](https://img.shields.io/badge/License-MIT-black?style=for-the-badge)
-
-**ระบบแสดงสถานะ Discord Rich Presence อัจฉริยะระดับ Enterprise**  
-*ดึงข้อมูลการดู YouTube (หน้าปกคลิปจริง + หลอดเวลาเรียลไทม์), การเขียนโค้ดบน VS Code และ AI Pair Programming ขึ้นบนโปรไฟล์ Discord ของคุณแบบสมจริงระดับ Official Integration*
-
-</div>
+โชว์เพลง/คลิปที่กำลังเล่น (YouTube, YouTube Music, Spotify) และงานที่ทำอยู่ (VS Code + AI) บนโปรไฟล์ Discord
+ออกแบบให้ **สวยเหมือน integration ทางการ** และ **กินเครื่องน้อยที่สุด** — เล่นเกมอยู่ก็ไม่รู้สึก
 
 ---
 
-## 📸 ภาพตัวอย่างการทำงานจริง (Live Demonstration)
+## หน้าตาการ์ดที่ได้
 
-<div align="center">
+| ส่วน | เดิม | v2 |
+|---|---|---|
+| หัวการ์ด | `กำลังดู Bio` (ชื่อแอปใน Dev Portal) | `กำลังดู YouTube` / `กำลังฟัง YouTube Music` / `กำลังฟัง Spotify` — เปลี่ยนตามแหล่งจริง |
+| ปกคลิป | `hqdefault.jpg` (4:3 มี**แถบดำบน-ล่าง**) | `maxresdefault.jpg` 1280×720 ไม่มีแถบดำ ตรวจว่ามีจริงก่อนใช้ ถ้าไม่มีถอยไป `mqdefault.jpg` (16:9 เช่นกัน) |
+| ชื่อคลิป | ข้อความเฉย ๆ | **คลิกได้** → เปิดคลิปนั้น (`details_url`), คลิกปกก็เปิดคลิป (`large_url`) |
+| ชื่อช่อง | `by EYETA` | `EYETA` **คลิกได้** → เปิดหน้าช่อง (`state_url`) |
+| ใน member list | ชื่อแอป | โชว์ **ชื่อเพลงเลย** (`status_display_type = DETAILS`) |
+| เพลง vs คลิป | ทุกอย่างเป็น "กำลังดู" | YouTube Music / Spotify = **กำลังฟัง**, YouTube = **กำลังดู** |
+| หลอดเวลา | ตรงระดับวินาที ขยับตอนอัปเดต | ผูก anchor กับ `last_updated_time` ของ Windows → ตรงเสี้ยววินาที ส่งครั้งเดียว Discord เดินเอง |
+| กด pause | หลุดไปสถานะอื่น | `⏸ หยุดชั่วคราว 06:57 / 14:28 • EYETA` เวลาค้างไว้ |
+| ชื่อคลิปรก | โชว์ทั้ง `(Official MV) [4K]` | ตัดคำรกออก แต่**ไม่ยุ่ง**กับวงเล็บที่เป็นส่วนของชื่อจริง เช่น `(ไม่เปลือง)` |
+| ปุ่ม | ลิงก์ค้นหา | `▶ ดูคลิปนี้บน YouTube` → ลิงก์ตรง `watch?v=…` + ปุ่ม custom ของคุณ |
+| เล่นเกม | โชว์ทับกับเกม | **ซ่อน presence อัตโนมัติ** ให้ Discord โชว์เกมแทน กลับมาเองเมื่อออกเกม |
 
-| 1. คลิปที่เปิดดูบน YouTube จริง | 2. สถานะบนโปรไฟล์ Discord ที่ซิงค์อัตโนมัติ |
-| :---: | :---: |
-| <img src="docs/showcase/01_youtube_source.png" width="450" alt="YouTube Source" /> | <img src="docs/showcase/02_discord_presence_synced.png" width="450" alt="Discord Presence" /> |
-
-<p align="center">
-  <i>🔥 ดึงหน้าปกคลิปจริง (Thumbnail HQ) • ชื่อคลิปและช่องจริง • หลอดความคืบหน้า Progress Bar แบบ Sub-second</i>
-</p>
-
-</div>
-
----
-
-## 🌟 ฟีเจอร์เด่น (Key Architectural Features)
-
-### 1. ⏱️ ระบบคำนวณเวลาแบบ Anchor Timestamp (Sub-Second Precision)
-- **แก้ปัญหาเวลารีเซ็ต**: ไม่ส่งคำสั่งอัปเดตเวลาหลอกทุกๆ ไม่กี่วินาทีเหมือนสคริปต์ทั่วไป
-- **คำนวณด้วย Anchor Algorithm**: ผูกค่าเวลาที่แท้จริงจาก Windows Media Control (`last_updated_time - position`) ส่งค่า `start_ts` และ `end_ts` เพียงครั้งเดียว ให้ Discord Client เป็นผู้เรนเดอร์หลอดความคืบหน้า (Progress Bar) อย่างราบรื่น
-- **รองรับสถานะ Play / Pause**: เมื่อกดหยุดคลิป จะแสดงเวลาที่หยุดค้างไว้ `[06:57 / 14:28]` โดยไม่ทำให้ตัวจับเวลาเดินเตลิด
-
-### 2. 🖼️ Realtime YouTube Thumbnail & Direct Video Resolver
-- **ดึงหน้าปกคลิปจริง**: แปลงชื่อคลิปและช่องที่กำลังเล่น ค้นหา Video ID เพื่อดึงรูปหน้าปกความละเอียดสูง `https://i.ytimg.com/vi/<id>/hqdefault.jpg` มาแสดงผลแทนโลโก้ธรรมดา
-- **ปุ่มเปิดคลิปโดยตรง**: ปุ่ม `[ ▶ ดูคลิปนี้บน YouTube ]` จะผูกเข้ากับ Direct Video URL (`https://www.youtube.com/watch?v=...`) ให้เพื่อนใน Discord กดเข้าไปดูคลิปเดียวกันได้ทันที
-- **In-Memory Caching (LRU)**: เก็บแคช Video ID และรูปภาพไว้ในหน่วยความจำ ลดการเรียกเครือข่ายซ้ำซ้อน 99%
-
-### 3. 💻 Multi-Tasking Mode (Coding + Media Playback)
-- ตรวจจับทั้งการเขียนโค้ดใน **Visual Studio Code** และการฟังเพลง/ดูคลิปไปพร้อมกัน
-- แสดงผลแบบไฮบริด: โชว์ทั้งไฟล์/Workspace ที่กำลังแก้ และชื่อเพลงที่กำลังฟังคลออยู่เบื้องหลัง
-
-### 4. 🛡️ Fingerprint-Based IPC Dispatch (Zero Jitter)
-- ตรวจสอบความเปลี่ยนแปลงของสถานะด้วย Payload Fingerprint
-- ป้องกันการยิงคำสั่งซ้ำซ้อนไปยัง Discord IPC Gateway ลดอัตราการเกิด Rate-Limit และอาการกระตุกของ Discord UI
+> หมายเหตุ Discord: ปุ่มบนการ์ด **คุณจะไม่เห็นเอง** (Discord ซ่อนปุ่มของตัวเอง) แต่คนอื่นเห็น • เมื่อเปลี่ยนคลิปใหม่ ปกจะขึ้นภายใน 5–10 วิ (รอหา video id เบื้องหลัง ระหว่างนั้นโชว์โลโก้ก่อน ไม่ค้าง)
 
 ---
 
-## 🏗️ สถาปัตยกรรมการทำงาน (System Architecture)
+## ประสิทธิภาพ: กินสเปคไหม? ชนกับเกมไหม?
 
-```mermaid
-flowchart TD
-    subgraph OS_Layer [" Windows 10 / 11 Operating System "]
-        Browser["Chrome / Edge / Brave / Spotify"] -->|Media Session Event| GSMTC["Windows GSMTC API\n(Global System Media Transport Controls)"]
-        VSCode["VS Code (Code.exe)"] -->|Window Text & Process| Win32["Win32 User32 API\n(GetWindowText & Process Enumeration)"]
-    end
+**คำตอบสั้น: ไม่กระทบ FPS ทั้งเวอร์ชันเก่าและใหม่ แต่ v2 ทำงานน้อยลง ~10 เท่า และหลบเกมให้เอง**
 
-    subgraph Agent_Core [" Antigravity RPC Engine (Python 3.11) "]
-        GSMTC -->|Async Session Inspection| WinSDK["winsdk Module\n(Timeline, Metadata, PlaybackStatus)"]
-        Win32 -->|Process & Title Scanner| Scanner["Process & Active Window Engine"]
-        
-        WinSDK --> Engine["Smart Activity Resolver & Anchor Time Sync"]
-        Scanner --> Engine
-        
-        Engine -->|Video Title & Channel| YTResolver["YouTube Cover & Video ID Resolver\n(In-Memory Cache)"]
-        YTResolver --> PayloadBuilder["Discord RPC Payload Builder\n(ActivityType.WATCHING / PLAYING)"]
-        
-        PayloadBuilder --> Fingerprint["Payload Fingerprint Filter\n(Prevents Jitter & IPC Spam)"]
-    end
+| หัวข้อ | เดิม | v2 |
+|---|---|---|
+| ส่งข้อมูลให้ Discord | ทุก 5 วิ แม้ไม่เปลี่ยน (Discord จำกัด 5 ครั้ง/20 วิ → โดนทิ้ง) | **เฉพาะตอนเปลี่ยน** / seek / heartbeat 15 นาที |
+| หา video id บน YouTube | โหลดหน้า ~1 MB **บน main thread** ค้างได้ 4 วิ | background thread + LRU cache 200 รายการ + ผลลบหมดอายุ 2 นาที |
+| Windows Media API | สร้าง event loop + Session Manager **ใหม่ทุก 5 วิ** | สร้างครั้งเดียว ใช้ซ้ำ |
+| สแกนโปรเซส/หน้าต่าง | ทุก 5 วิ | cache 10 วิ |
+| Priority | ปกติ (แข่ง CPU กับเกม) | **Below-Normal + Efficiency mode (EcoQoS)** — Windows จัดให้อยู่ท้ายคิว/E-core เสมอ |
+| ตอนเล่นเกม | ทำงานเท่าเดิม | ตรวจ fullscreen → ซ่อน presence, ผ่อนเป็นทุก 15 วิ |
+| RAM | ~40 MB | ~40 MB (Python + winsdk; ลดไม่ได้มากกว่านี้โดยไม่เปลี่ยนภาษา) |
+| CPU เฉลี่ย (ประมาณ) | < 0.5% | < 0.05% |
 
-    subgraph Discord_Layer [" Discord Client "]
-        Fingerprint -->|Local IPC Pipe| DiscordRPC["Discord Desktop Local IPC"]
-        DiscordRPC --> Profile["User Discord Profile\n(Cover Art + Native Animated Timeline)"]
-    end
-```
+**ความเสี่ยงที่ควรรู้ (ตรงไปตรงมา):** โปรแกรมอ่านรายชื่อโปรเซสและชื่อหน้าต่างเหมือนที่ Discord เองทำ โอกาสโดน anti-cheat มองผิดต่ำมาก แต่ถ้าเล่นเกมที่ anti-cheat เข้มมาก (Vanguard/FACEIT) และกังวล ให้ใส่ชื่อ exe ของเกมใน `game_processes` — โปรแกรมจะซ่อน presence ทันทีที่เกมเปิด แม้ไม่ fullscreen
 
 ---
 
-## 📂 โครงสร้างโปรเจกต์ (Project Structure)
+## วิธีใช้
 
-```text
-clever-davinci/
-│
-├── .venv/                      # Isolated Virtual Environment (Python 3.11+)
-├── main.py                     # Senior-Grade Discord RPC Engine (GSMTC + IPC)
-├── config.json                 # Core Configuration (Client ID, Defaults, Buttons)
-├── start.bat                   # One-Click Interactive Console Launcher
-├── start_background.vbs        # Silent Background Launcher (No Console Window)
-├── stop_background.bat         # One-Click Process Killer for Background Mode
-├── requirements.txt            # Pinned Dependencies (pypresence, psutil, winsdk)
-└── README.md                   # Enterprise Documentation & Developer Guide
-```
+1. เปิด Discord Desktop และล็อกอิน
+2. Discord → **Settings → Activity Privacy** → เปิด *Share your detected activities with others*
+3. ดับเบิลคลิก **`start_background.vbs`** (รันเงียบ ไม่มีหน้าต่างดำ) หรือ `start.bat` ถ้าอยากเห็น log สด
+4. หยุด: **`stop_background.bat`**
+5. ให้รันเองตอนเปิดเครื่อง: **`autostart_on.bat`** (ยกเลิก: `autostart_off.bat`)
+
+รอบแรก `start.bat` จะสร้าง `.venv` และติดตั้ง `psutil`, `pypresence`, `winsdk` ให้เอง
+log อยู่ที่ `rpc.log` (หมุนเวียน 256 KB ไม่บวมแน่นอน) — รัน `start.bat -v` เพื่อดู debug
 
 ---
 
-## 🚀 วิธีติดตั้งและเปิดใช้งาน (Quickstart Guide)
-
-### 1. ข้อกำหนดเบื้องต้น (Prerequisites)
-- **ระบบปฏิบัติการ**: Windows 10 หรือ Windows 11 (รองรับ GSMTC API เต็มรูปแบบ)
-- **โปรแกรม Discord**: ติดตั้ง Discord Desktop บนคอมพิวเตอร์และเข้าสู่ระบบเรียบร้อย
-- **Python**: เวอร์ชัน 3.10 ขึ้นไป
-
-### 2. การตั้งค่าในโปรแกรม Discord (สำคัญมาก ⭐)
-1. เปิด Discord ไปที่ **User Settings (ไอคอนฟันเฟือง)** มุมซ้ายล่าง
-2. เลือกหมวด **Activity Privacy (ความเป็นส่วนตัวของกิจกรรม)**
-3. เปิดสวิตช์:
-   - ✅ **"Display current activity as a status message"** (แสดงกิจกรรมปัจจุบันเป็นข้อความสถานะ)
-
-### 3. รันโปรแกรม (เลือกได้ 2 วิธี)
-- **วิธีที่ 1 (หน้าต่างคอนโซลมีสถานะบอก)**:
-  ดับเบิ้ลคลิกไฟล์ `start.bat`
-- **วิธีที่ 2 (รันเงียบๆ ซ่อนหน้าต่างสีดำในพื้นหลัง)**:
-  ดับเบิ้ลคลิกไฟล์ `start_background.vbs`  
-  *(หากต้องการปิด ให้ดับเบิ้ลคลิก `stop_background.bat`)*
-
----
-
-## 🎨 การปรับแต่งชื่อแอปให้สมบูรณ์แบบ (Discord Developer Portal)
-
-เพื่อให้ชื่อหัวข้อใหญ่บนสุดขึ้นว่า **"กำลังดู YouTube"** หรือ **"กำลังเล่น Visual Studio Code"** อย่างสมจริง:
-
-1. เข้าไปที่ [Discord Developer Portal](https://discord.com/developers/applications)
-2. เลือก Application ของคุณ (`1546386469353160804`)
-3. ไปที่แท็บ **General Information** ทางซ้ายมือ
-4. แก้ไขช่อง **NAME** เช่น:
-   - ตั้งเป็น `YouTube` (จะแสดงผลว่า: **"กำลังดู YouTube"**)
-   - หรือ `YouTube Music`
-   - หรือ `Visual Studio Code`
-   - หรือ `Workspace & Chill`
-5. กดปุ่มสีเขียว **Save Changes** ด้านล่างสุด
-
----
-
-## ⚙️ การตั้งค่า `config.json`
+## ปรับแต่ง `config.json` (แก้แล้วมีผลทันที ไม่ต้องรีสตาร์ท)
 
 ```json
 {
   "client_id": "1546386469353160804",
-  "update_interval_seconds": 2,
-  "buttons": [
-    {
-      "label": "📺 Open YouTube",
-      "url": "https://www.youtube.com"
-    },
-    {
-      "label": "⚡ Antigravity AI",
-      "url": "https://github.com"
-    }
-  ]
+  "language": "th",                    // "th" หรือ "en"
+  "update_interval_seconds": 5,        // ความถี่ตรวจสอบ (ส่งจริงเฉพาะตอนเปลี่ยน)
+  "gaming_interval_seconds": 15,       // ความถี่ตอนเล่นเกม
+  "show_cover_art": true,              // false = ใช้โลโก้แทนปกคลิป
+  "pause_when_gaming": true,           // ซ่อน presence ตอนเกม fullscreen
+  "game_processes": ["valorant.exe"],  // เกมที่ให้ถือว่า "เล่นเกม" เสมอ (ไม่บังคับ)
+  "custom_button": { "label": "⚡ Antigravity AI", "url": "https://github.com" },
+  "buttons": [ ... ]                   // ปุ่มตอนไม่ได้เล่นสื่อ (สูงสุด 2)
 }
 ```
 
 ---
 
-## 🔬 ทำไมถึงใช้ Windows GSMTC แทนการใช้ Extension?
+## Developer Portal (ทางเลือก)
 
-| คุณสมบัติ | ระบบ Windows GSMTC (สคริปต์นี้) | ระบบที่ต้องพึ่งพา Browser Extension |
-| :--- | :--- | :--- |
-| **การใช้ทรัพยากร** | ⚡ กินแรมน้อยมาก ดึงข้อมูลผ่าน OS API ตรงๆ | ❌ ต้องรัน Background Script ตลอดเวลาบนเบราว์เซอร์ |
-| **ความเข้ากันได้** | 🌐 รองรับทั้ง Chrome, Edge, Brave, Spotify, Opera | ❌ ต้องติดตั้งและตั้งค่าแยกทุกเบราว์เซอร์ |
-| **ความปลอดภัย** | 🔒 ปลอดภัย 100% ไม่ดึง Cookies หรือประวัติการท่องเว็บ | ⚠️ Extension มักขอสิทธิ์ Read/Change Data All Websites |
-| **การติดตั้ง** | 🚀 รันไฟล์เดียวจบ ไม่ต้องกดติดตั้งอะไรในเบราว์เซอร์ | ❌ ต้องดาวน์โหลดและกดยืนยันสิทธิ์ใน Web Store |
+ชื่อแอปถูก override ด้วย `name` แล้ว จึง**ไม่ต้อง**เปลี่ยนชื่อ "Bio" ก็ได้
+ถ้าอยากให้ไอคอนแอปสวย: [Developer Portal](https://discord.com/developers/applications/1546386469353160804/information) → **App Icon**
 
 ---
 
-## 📄 ใบอนุญาต (License)
+## โครงสร้างโค้ด (สำหรับคนอยากแก้ต่อ)
 
-โปรเจกต์นี้เผยแพร่ภายใต้สัญญาอนุญาต [MIT License](LICENSE) สามารถนำไปพัฒนาต่อยอด ปรับแต่ง หรือใช้งานได้อย่างอิสระครับ
+```
+main.py
+├─ Config            อ่าน config.json ใหม่เฉพาะตอนไฟล์เปลี่ยน (mtime)
+├─ YouTubeResolver   thread แยก: หา video id, ช่อง, ปก maxres→mq  (LRU + TTL)
+├─ WindowsProbe      GSMTC media (loop เดียว), process/window snapshot (cache), fullscreen game, priority
+├─ build_payload()   pure function → ทดสอบได้โดยไม่ต้องมี Windows/Discord
+├─ should_send()     dedupe: เนื้อหาเปลี่ยน / seek > 3 วิ / heartbeat 15 นาที
+└─ run()             main loop
+```
+
+ชุดทดสอบ logic (title cleaning, anchor math, payload ทุก case, dedupe) รันผ่านครบบน Linux ก่อนส่งมอบ
+สิ่งที่**ยังไม่ได้ทดสอบจากที่นี่**เพราะต้องใช้เครื่อง Windows จริง: การเชื่อม Discord IPC, GSMTC, และการเข้าถึง YouTube (sandbox บล็อก) — ถ้ารันแล้วมีปัญหา ดู `rpc.log` ได้เลย

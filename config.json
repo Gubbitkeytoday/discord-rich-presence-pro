@@ -1,14 +1,14 @@
 {
   "client_id": "1546386469353160804",
+  "language": "th",
   "update_interval_seconds": 5,
+  "gaming_interval_seconds": 15,
+  "show_cover_art": true,
+  "pause_when_gaming": true,
+  "game_processes": [],
+  "custom_button": { "label": "⚡ Antigravity AI", "url": "https://github.com" },
   "buttons": [
-    {
-      "label": "📺 Open YouTube",
-      "url": "https://www.youtube.com"
-    },
-    {
-      "label": "⚡ Antigravity AI",
-      "url": "https://github.com"
-    }
+    { "label": "📺 Open YouTube", "url": "https://www.youtube.com" },
+    { "label": "⚡ Antigravity AI", "url": "https://github.com" }
   ]
 }
