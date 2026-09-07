@@ -15,6 +15,22 @@
 
 ---
 
+## 📸 ภาพตัวอย่างการทำงานจริง (Live Demonstration)
+
+<div align="center">
+
+| 1. คลิปที่เปิดดูบน YouTube จริง | 2. สถานะบนโปรไฟล์ Discord ที่ซิงค์อัตโนมัติ |
+| :---: | :---: |
+| <img src="docs/showcase/01_youtube_source.png" width="450" alt="YouTube Source" /> | <img src="docs/showcase/02_discord_presence_synced.png" width="450" alt="Discord Presence" /> |
+
+<p align="center">
+  <i>🔥 ดึงหน้าปกคลิปจริง (Thumbnail HQ) • ชื่อคลิปและช่องจริง • หลอดความคืบหน้า Progress Bar แบบ Sub-second</i>
+</p>
+
+</div>
+
+---
+
 ## 🌟 ฟีเจอร์เด่น (Key Architectural Features)
 
 ### 1. ⏱️ ระบบคำนวณเวลาแบบ Anchor Timestamp (Sub-Second Precision)
