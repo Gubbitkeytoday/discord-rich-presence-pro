@@ -1,4 +1,4 @@
-# Discord Rich Presence — Antigravity Edition v2
+# Discord Rich Presence
 
 โชว์เพลง/คลิปที่กำลังเล่น (YouTube, YouTube Music, Spotify) และงานที่ทำอยู่ (VS Code) บนโปรไฟล์ Discord
 สวยเหมือน integration ทางการ • กินเครื่องน้อยมาก • หลบเกมให้เอง • **ใช้ได้ทุกเครื่อง Windows 10/11**
