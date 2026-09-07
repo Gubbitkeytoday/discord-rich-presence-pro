@@ -3,6 +3,18 @@
 โชว์เพลง/คลิปที่กำลังเล่น (YouTube, YouTube Music, Spotify) และงานที่ทำอยู่ (VS Code) บนโปรไฟล์ Discord
 สวยเหมือน integration ทางการ • กินเครื่องน้อยมาก • หลบเกมให้เอง • **ใช้ได้ทุกเครื่อง Windows 10/11**
 
+<div align="center">
+
+| 1. การ์ดโปรไฟล์ Discord เต็มรูปแบบ | 2. การ์ดกิจกรรมขณะเล่นคลิป (หลอดเวลา & ปกจริง) |
+| :---: | :---: |
+| <img src="screenshots/01_discord_full_profile.png" width="330" alt="Full Discord Profile" /> | <img src="screenshots/02_discord_activity_card.png" width="480" alt="Discord Activity Card" /> |
+
+<p align="center">
+  <i>🔥 ซิงค์รูปหน้าปกคลิป YouTube จริง • หลอดเวลา Sub-second Precision • สเตตัสเรียลไทม์ตรงกับคลิปเป๊ะๆ</i>
+</p>
+
+</div>
+
 ---
 
 ## สำหรับผู้ใช้ทั่วไป (ไม่ต้องรู้เรื่องโปรแกรม) — 3 ขั้นตอน
