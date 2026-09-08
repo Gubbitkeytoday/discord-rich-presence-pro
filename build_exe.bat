@@ -13,6 +13,7 @@ if not exist ".venv\Scripts\python.exe" (
 
 ".venv\Scripts\python.exe" -m PyInstaller --noconfirm --onefile --noconsole ^
   --name "DiscordRichPresence" ^
+  --icon "app_icon.ico" ^
   --collect-submodules winsdk --collect-binaries winsdk --collect-data winsdk ^
   --hidden-import winsdk.windows.media.control ^
   --hidden-import winsdk.windows.foundation ^
